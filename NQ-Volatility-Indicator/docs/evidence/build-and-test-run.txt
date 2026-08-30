@@ -1,0 +1,11 @@
+# Test evidence
+
+Captured: 2026-08-30T18:42:19Z
+Host: Linux 6.18.44-fc-v22 x86_64
+SDK: 8.0.130
+Command: dotnet test NQVolatility.sln
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    97, Skipped:     0, Total:    97, Duration: 117 ms - NQVolatility.Tests.dll (net8.0)
