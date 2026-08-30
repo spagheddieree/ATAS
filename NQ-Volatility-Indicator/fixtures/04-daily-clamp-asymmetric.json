@@ -1,0 +1,59 @@
+{
+  "name": "daily-clamp-asymmetric",
+  "description": "Same bars as the baseline, but seeded with previousUp=10 and previousDown=1000. The +40% clamp pulls up down to 14 while the -40% clamp pushes down up to 600, proving the two directions are constrained independently. The resulting asymmetry suppresses every upward zone and reveals every downward one.",
+  "input": {
+    "timeZone": "America/Los_Angeles",
+    "sessionStart": "17:00",
+    "sessionEnd": "21:00",
+    "lookbackPeriod": 3,
+    "atrLength": 20,
+    "previousUpDistance": 10.0,
+    "previousDownDistance": 1000.0,
+    "yesterdayAtr": 300.0,
+    "bars": [
+      { "t": "2024-01-08T17:00:00-08:00", "o": 20000, "h": 20050, "l": 19950, "c": 20000 },
+      { "t": "2024-01-08T18:00:00-08:00", "o": 20000, "h": 20100, "l": 19980, "c": 20000 },
+      { "t": "2024-01-08T19:00:00-08:00", "o": 20000, "h": 20060, "l": 19960, "c": 20000 },
+      { "t": "2024-01-08T20:00:00-08:00", "o": 20000, "h": 20040, "l": 19900, "c": 20000 },
+      { "t": "2024-01-08T21:00:00-08:00", "o": 20000, "h": 20030, "l": 19970, "c": 20000 },
+      { "t": "2024-01-08T22:00:00-08:00", "o": 20000, "h": 20010, "l": 19990, "c": 20000 }
+    ]
+  },
+  "expected": {
+    "sessionCount": 1,
+    "sessions": [
+      {
+        "sessionStartUtc": "2024-01-09T01:00:00Z",
+        "sessionEndUtc": "2024-01-09T05:00:00Z",
+        "lockTimeUtc": "2024-01-09T06:00:00Z",
+        "projectionsLocked": true,
+        "sessionComplete": true,
+        "accumulatedBars": 5,
+        "finalHigh": 20100.0,
+        "finalLow": 19900.0,
+        "atr": 300.0,
+        "scaleFactor": 1.0,
+        "lockedUpDistance": 14.0,
+        "lockedDownDistance": 600.0,
+        "skewRatio": 42.857142857142854,
+        "drawFromUtc": "2024-01-09T05:00:00Z",
+        "drawToUtc": "2024-01-10T01:00:00Z",
+        "levels": { "high": 20100.0, "low": 19900.0, "q1": 19950.0, "eq": 20000.0, "q3": 20050.0 },
+        "up": {
+          "m200": 19928.0, "m233": 19932.62, "m250": 19935.0, "m300": 19942.0,
+          "m400": 19956.0, "m450": 19963.0, "m600": 19984.0, "m650": 19991.0,
+          "m778": 20008.92, "m850": 20019.0
+        },
+        "down": {
+          "m200": 18900.0, "m233": 18702.0, "m250": 18600.0, "m300": 18300.0,
+          "m400": 17700.0, "m450": 17400.0, "m600": 16500.0, "m650": 16200.0,
+          "m778": 15432.0, "m850": 15000.0
+        },
+        "visibility": {
+          "upLevel1": false, "upLine300": false, "upAvr": false, "upAvrPlus": false, "upMax": false,
+          "downLevel1": true, "downLine300": true, "downAvr": true, "downAvrPlus": true, "downMax": true
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "name": "dst-spring-forward",
+  "description": "Sessions on 2024-03-09 (PST, UTC-8) and 2024-03-10 (PDT, UTC-7), spanning the US spring-forward transition. The two session starts are 23 hours apart in UTC, not 24 - proof that named-zone DST is honoured rather than a fixed offset. Both sessions extend to Monday 2024-03-11 17:00 (Sat->Mon and Sun->Mon).",
+  "input": {
+    "timeZone": "America/Los_Angeles",
+    "sessionStart": "17:00",
+    "sessionEnd": "21:00",
+    "lookbackPeriod": 3,
+    "atrLength": 20,
+    "previousUpDistance": null,
+    "previousDownDistance": null,
+    "yesterdayAtr": 300.0,
+    "bars": [
+      { "t": "2024-03-09T17:00:00-08:00", "o": 20000, "h": 20050, "l": 19950, "c": 20000 },
+      { "t": "2024-03-09T18:00:00-08:00", "o": 20000, "h": 20100, "l": 19980, "c": 20000 },
+      { "t": "2024-03-09T19:00:00-08:00", "o": 20000, "h": 20060, "l": 19960, "c": 20000 },
+      { "t": "2024-03-09T20:00:00-08:00", "o": 20000, "h": 20040, "l": 19900, "c": 20000 },
+      { "t": "2024-03-09T21:00:00-08:00", "o": 20000, "h": 20030, "l": 19970, "c": 20000 },
+      { "t": "2024-03-09T22:00:00-08:00", "o": 20000, "h": 20010, "l": 19990, "c": 20000 },
+      { "t": "2024-03-10T17:00:00-07:00", "o": 20000, "h": 20050, "l": 19950, "c": 20000 },
+      { "t": "2024-03-10T18:00:00-07:00", "o": 20000, "h": 20100, "l": 19980, "c": 20000 },
+      { "t": "2024-03-10T19:00:00-07:00", "o": 20000, "h": 20060, "l": 19960, "c": 20000 },
+      { "t": "2024-03-10T20:00:00-07:00", "o": 20000, "h": 20040, "l": 19900, "c": 20000 },
+      { "t": "2024-03-10T21:00:00-07:00", "o": 20000, "h": 20030, "l": 19970, "c": 20000 },
+      { "t": "2024-03-10T22:00:00-07:00", "o": 20000, "h": 20010, "l": 19990, "c": 20000 }
+    ]
+  },
+  "expected": {
+    "sessionCount": 2,
+    "sessions": [
+      {
+        "sessionStartUtc": "2024-03-10T01:00:00Z",
+        "sessionEndUtc": "2024-03-10T05:00:00Z",
+        "lockTimeUtc": "2024-03-10T06:00:00Z",
+        "projectionsLocked": true,
+        "sessionComplete": true,
+        "accumulatedBars": 5,
+        "finalHigh": 20100.0,
+        "finalLow": 19900.0,
+        "atr": 300.0,
+        "scaleFactor": 1.0,
+        "lockedUpDistance": 45.0,
+        "lockedDownDistance": 48.0,
+        "skewRatio": 1.0666666666666667,
+        "drawFromUtc": "2024-03-10T05:00:00Z",
+        "drawToUtc": "2024-03-12T00:00:00Z",
+        "levels": { "high": 20100.0, "low": 19900.0, "q1": 19950.0, "eq": 20000.0, "q3": 20050.0 },
+        "up": {
+          "m200": 19990.0, "m233": 20004.85, "m250": 20012.5, "m300": 20035.0,
+          "m400": 20080.0, "m450": 20102.5, "m600": 20170.0, "m650": 20192.5,
+          "m778": 20250.1, "m850": 20282.5
+        },
+        "down": {
+          "m200": 20004.0, "m233": 19988.16, "m250": 19980.0, "m300": 19956.0,
+          "m400": 19908.0, "m450": 19884.0, "m600": 19812.0, "m650": 19788.0,
+          "m778": 19726.56, "m850": 19692.0
+        },
+        "visibility": {
+          "upLevel1": false, "upLine300": false, "upAvr": false, "upAvrPlus": true, "upMax": true,
+          "downLevel1": false, "downLine300": false, "downAvr": false, "downAvrPlus": true, "downMax": true
+        }
+      },
+      {
+        "sessionStartUtc": "2024-03-11T00:00:00Z",
+        "sessionEndUtc": "2024-03-11T04:00:00Z",
+        "lockTimeUtc": "2024-03-11T05:00:00Z",
+        "projectionsLocked": true,
+        "sessionComplete": true,
+        "accumulatedBars": 5,
+        "finalHigh": 20100.0,
+        "finalLow": 19900.0,
+        "atr": 300.0,
+        "scaleFactor": 1.0,
+        "lockedUpDistance": 45.0,
+        "lockedDownDistance": 48.0,
+        "skewRatio": 1.0666666666666667,
+        "drawFromUtc": "2024-03-11T04:00:00Z",
+        "drawToUtc": "2024-03-12T00:00:00Z",
+        "levels": { "high": 20100.0, "low": 19900.0, "q1": 19950.0, "eq": 20000.0, "q3": 20050.0 },
+        "up": {
+          "m200": 19990.0, "m233": 20004.85, "m250": 20012.5, "m300": 20035.0,
+          "m400": 20080.0, "m450": 20102.5, "m600": 20170.0, "m650": 20192.5,
+          "m778": 20250.1, "m850": 20282.5
+        },
+        "down": {
+          "m200": 20004.0, "m233": 19988.16, "m250": 19980.0, "m300": 19956.0,
+          "m400": 19908.0, "m450": 19884.0, "m600": 19812.0, "m650": 19788.0,
+          "m778": 19726.56, "m850": 19692.0
+        },
+        "visibility": {
+          "upLevel1": false, "upLine300": false, "upAvr": false, "upAvrPlus": true, "upMax": true,
+          "downLevel1": false, "downLine300": false, "downAvr": false, "downAvrPlus": true, "downMax": true
+        }
+      }
+    ]
+  }
+}
