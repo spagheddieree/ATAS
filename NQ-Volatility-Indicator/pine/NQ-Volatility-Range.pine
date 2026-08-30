@@ -1,0 +1,977 @@
+//@version=6
+indicator("NQ Volatility Range", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ==================== USER INPUTS ====================
+// --- Time Range Settings ---
+timeSettingsGroup = "Time Range Settings"
+timeZone = input.string("America/Los_Angeles", "Time Zone", options=["UTC", "America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Tokyo", "Asia/Shanghai", "Asia/Singapore", "Australia/Sydney"], group=timeSettingsGroup)
+
+// Internal session time (not exposed to user)
+asiaSession = "1700-2100"
+
+// Internal defaults (not exposed to user)
+rangePreset = "Asia"
+londonSession = "0000-0600"
+nyAmSession = "0630-0900"
+nyPmSession = "0900-1200"
+rangeStartHour = 17
+rangeStartMinute = 0
+rangeEndHour = 21
+rangeEndMinute = 0
+
+// --- Projection Mode Configuration ---
+projectionGroup = "Projection Mode Configuration"
+atrLength = input.int(20, "ATR Length", minval=1, group=projectionGroup, tooltip="ATR period calculated from daily candles. Used to dynamically size projection zones based on market volatility.")
+
+// Internal projection settings (not exposed to user)
+projectionMode = "Auto"
+baselineVol = 300.0
+baseUpRef = 45.0
+baseDownRef = 48.0
+skewConst = 1.067
+scaleClampLow = 0.80
+scaleClampHigh = 1.40
+maxDailyChange = 0.40
+
+// Internal manual mode defaults (not exposed to user - mode is fixed to Auto)
+upPointDistance = 45.0
+downPointDistance = 48.0
+
+// Internal projection lock time (not exposed to user)
+// Default 21:00 = end of Asia session
+nyOpenHour = 21
+nyOpenMinute = 0
+
+// Internal rounding settings (not exposed to user)
+roundTo = 0.25
+
+// --- Range Box Settings ---
+rangeBoxGroup = "Range Box Settings"
+showRangeBox = input.bool(true, "Show Range Box", group=rangeBoxGroup)
+rangeBoxColor = input.color(color.new(#ffffff, 85), "Range Box Color", group=rangeBoxGroup)
+rangeBoxOpacity = input.int(85, "Range Box Opacity (%)", minval=0, maxval=100, group=rangeBoxGroup)
+
+// --- Range Level Lines Settings ---
+rangeLevelsGroup = "Range Level Lines"
+showHighLowLines = input.bool(true, "Show High/Low (H/L) Lines", group=rangeLevelsGroup)
+showQuarterLines = input.bool(true, "Show Quarter (Q1/Q3) Lines", group=rangeLevelsGroup)
+showEqLine = input.bool(true, "Show Equilibrium (EQ) Line", group=rangeLevelsGroup)
+
+// High/Low line settings
+highLowLineColor = input.color(color.new(#e5ff00, 50), "High/Low Lines Color", group=rangeLevelsGroup)
+highLowLineOpacity = input.int(0, "High/Low Lines Opacity (%)", minval=0, maxval=100, group=rangeLevelsGroup)
+
+// Quarter lines settings
+quarterLineColor = input.color(color.new(#ff0000, 50), "Quarter Lines Color", group=rangeLevelsGroup)
+quarterLineOpacity = input.int(0, "Quarter Lines Opacity (%)", minval=0, maxval=100, group=rangeLevelsGroup)
+
+// Equilibrium line settings
+eqLineColor = input.color(color.new(#ff0000, 50), "Equilibrium Line Color", group=rangeLevelsGroup)
+eqLineOpacity = input.int(0, "Equilibrium Line Opacity (%)", minval=0, maxval=100, group=rangeLevelsGroup)
+
+// Range level labels settings
+showRangeLevelLabels = input.bool(true, "Show Range Level Labels", group=rangeLevelsGroup)
+rangeLevelLabelSize = input.string("small", "Range Level Label Size", options=["tiny", "small", "normal", "large", "huge"], group=rangeLevelsGroup)
+
+// --- Fibonacci Zone Settings ---
+zoneGroup = "Fibonacci Zone Settings"
+
+// Level 1 Zone (2.0 to 2.5 with inner shaded area 2.33 to 2.5)
+show233_250Zone = input.bool(true, "Show Level 1", group=zoneGroup)
+zone1Color = input.color(color.new(#ffffff, 80), "Level 1 Outer Color", group=zoneGroup)
+zone1Opacity = input.int(80, "Level 1 Outer Opacity (%)", minval=0, maxval=100, group=zoneGroup)
+zone1InnerColor = input.color(color.new(#f23645, 80), "Level 1 Inner Shade Color", group=zoneGroup, tooltip="Color for the 2.33-2.5 shaded area within Level 1")
+zone1InnerOpacity = input.int(80, "Level 1 Inner Shade Opacity (%)", minval=0, maxval=100, group=zoneGroup)
+
+// -4.0 and -4.5 zone (OTE Zone 2)
+show400_450Zone = input.bool(true, "Show AVR", group=zoneGroup)
+zone2Color = input.color(color.new(#ff7b00, 80), "AVR Color", group=zoneGroup)
+zone2Opacity = input.int(80, "AVR Opacity (%)", minval=0, maxval=100, group=zoneGroup)
+
+// -6.0 and -6.5 zone (Zone 3)
+show600_650Zone = input.bool(true, "Show AVR+", group=zoneGroup)
+zone3Color = input.color(color.new(#b90000, 80), "AVR+ Color", group=zoneGroup)
+zone3Opacity = input.int(80, "AVR+ Opacity (%)", minval=0, maxval=100, group=zoneGroup)
+
+// -8.0 and -8.5 zone (Zone 4 - New MAX)
+show800_850Zone = input.bool(true, "Show MAX", group=zoneGroup)
+zone4Color = input.color(color.new(#7a0000, 80), "MAX Color", group=zoneGroup)
+zone4Opacity = input.int(80, "MAX Opacity (%)", minval=0, maxval=100, group=zoneGroup)
+
+// -3.0 horizontal line
+show300Line = input.bool(true, "Show AVR-", group=zoneGroup)
+line300Color = input.color(color.new(#ffffff, 50), "AVR- Line Color", group=zoneGroup)
+line300Opacity = input.int(0, "AVR- Line Opacity (%)", minval=0, maxval=100, group=zoneGroup)
+line300Width = input.int(1, "AVR- Line Width", minval=1, maxval=4, group=zoneGroup)
+line300Style = input.string("Dotted", "AVR- Line Style", options=["Solid", "Dotted", "Dashed", "Arrow Left", "Arrow Right", "Arrow Both"], group=zoneGroup, tooltip="Choose the line style for the AVR- horizontal line")
+
+// --- Zone Label Settings ---
+zoneLabelGroup = "Zone Label Settings"
+showZoneLabels = input.bool(true, "Show Zone Labels", group=zoneLabelGroup)
+zone1LabelColor = input.color(color.white, "Level 1 Label Color", group=zoneLabelGroup)
+zone2LabelColor = input.color(color.white, "AVR Label Color", group=zoneLabelGroup)
+zone3LabelColor = input.color(color.white, "AVR+ Label Color", group=zoneLabelGroup)
+zone4LabelColor = input.color(color.white, "MAX Label Color", group=zoneLabelGroup)
+
+// Internal zone label settings (not exposed to user)
+zone1LabelText = "Level 1"
+zone2LabelText = "AVR"
+zone3LabelText = "AVR+"
+zone4LabelText = "MAX"
+zoneLabelSize = "small"
+zoneLabelPosition = "center"
+
+// Internal Fibonacci level constants (not exposed to user)
+// Level 1 Zone (Outer box and Inner shaded area)
+fib200 = -2.0
+fib233 = -2.33
+fib250 = -2.5
+// AVR- Line (Single line between Level 1 and AVR zones)
+fib300 = -3.0
+// AVR Zone (Outer boundary and Inner boundary)
+fib400 = -4.0
+fib450 = -4.5
+// AVR+ Zone (Outer boundary and Inner boundary)
+fib600 = -6.0
+fib650 = -6.5
+// MAX Zone (Outer boundary and Inner boundary)
+fib800 = -7.78
+fib850 = -8.5
+
+// --- Display Settings ---
+displayGroup = "Display Settings"
+lookbackPeriod = input.int(3, "Historical Sessions to Show", minval=1, maxval=10, group=displayGroup)
+
+// --- Table Settings ---
+tableGroup = "Information Table"
+showTable = input.bool(true, "Show Info Table", group=tableGroup)
+tablePosition = input.string("Top Right", "Table Position", options=["Top Left", "Top Center", "Top Right", "Middle Left", "Middle Center", "Middle Right", "Bottom Left", "Bottom Center", "Bottom Right"], group=tableGroup)
+tableTextSize = input.string("Normal", "Table Text Size", options=["Tiny", "Small", "Normal", "Large", "Huge"], group=tableGroup)
+
+// ==================== TYPE DEFINITIONS ====================
+type RangeSession
+    int startTime
+    int endTime
+    int lockTime = na  // Time when projections are locked at NY open
+    float highPrice = 0.0
+    float lowPrice = 999999.0
+    float finalHigh = na
+    float finalLow = na
+    box rangeBox = na
+    bool sessionComplete = false
+    bool projectionsLocked = false  // Locked at NY open
+    bool zonesFinalizedToNextSession = false  // Prevents extending after finalization
+    // Locked projection distances for this session
+    float lockedUpDistance = na
+    float lockedDownDistance = na
+    // ATR values for diagnostics
+    float atrValue = na
+    float scaleFactor = na
+    float skewRatio = na
+    // Upward projection zones (from low)
+    box upZone1 = na  // -2.0 to -2.5 (outer box)
+    box upZone1Inner = na  // -2.33 to -2.5 (inner shaded area)
+    box upZone2 = na  // -4.0 to -4.5
+    box upZone3 = na  // -6.0 to -6.5
+    box upZone4 = na  // -8.0 to -8.5
+    line upLine300 = na  // -3.0 line
+    // Downward projection zones (from high)
+    box downZone1 = na  // -2.0 to -2.5 (outer box)
+    box downZone1Inner = na  // -2.33 to -2.5 (inner shaded area)
+    box downZone2 = na  // -4.0 to -4.5
+    box downZone3 = na  // -6.0 to -6.5
+    box downZone4 = na  // -8.0 to -8.5
+    line downLine300 = na  // -3.0 line
+    // Zone labels
+    label upZone1Label = na
+    label upZone2Label = na
+    label upZone3Label = na
+    label upZone4Label = na
+    label downZone1Label = na
+    label downZone2Label = na
+    label downZone3Label = na
+    label downZone4Label = na
+    label upLine300Label = na  // AVR- line label for upward projection
+    label downLine300Label = na  // AVR- line label for downward projection
+    // Range level lines
+    line highLine = na
+    line lowLine = na
+    line q1Line = na
+    line eqLine = na
+    line q3Line = na
+    // Range level labels
+    label highLabel = na
+    label lowLabel = na
+    label q1Label = na
+    label eqLabel = na
+    label q3Label = na
+
+// ==================== VARIABLES ====================
+var array<RangeSession> sessions = array.new<RangeSession>()
+var RangeSession currentSession = na
+
+// State for tracking previous day U values for clamping
+var float prevUpDistance = na
+var float prevDownDistance = na
+
+// ATR calculation for Auto mode (yesterday's completed Daily ATR)
+// Using request.security with lookahead off to get non-repainting ATR
+atrDaily = request.security(syminfo.tickerid, "D", ta.atr(atrLength), lookahead=barmerge.lookahead_off)
+// Get yesterday's completed ATR by referencing [1]
+yesterdayATR = atrDaily[1]
+
+// Information table
+var table infoTable = na
+
+// ==================== HELPER FUNCTIONS ====================
+
+// Round price to nearest tick size
+roundPrice(price, tickSize) =>
+    math.round(price / tickSize) * tickSize
+
+// Clamp value between min and max
+clampValue(value, minVal, maxVal) =>
+    math.max(minVal, math.min(maxVal, value))
+
+// Calculate Auto mode U values with volatility scaling and clamping
+calculateAutoUValues(atr, prevUp, prevDown) =>
+    // Calculate scale factor from ATR
+    fRaw = atr / baselineVol
+    // Clamp scale factor
+    f = clampValue(fRaw, scaleClampLow, scaleClampHigh)
+    
+    // Calculate base U values scaled by volatility
+    uUpAutoBase = baseUpRef * f
+    uDownAutoBase = baseDownRef * f
+    
+    // Initialize previous values if na (first day)
+    localPrevUp = na(prevUp) ? uUpAutoBase : prevUp
+    localPrevDown = na(prevDown) ? uDownAutoBase : prevDown
+    
+    // Clamp vs prior day to limit jumps
+    minUpChange = localPrevUp * (1 - maxDailyChange)
+    maxUpChange = localPrevUp * (1 + maxDailyChange)
+    uUpToday = clampValue(uUpAutoBase, minUpChange, maxUpChange)
+    
+    minDownChange = localPrevDown * (1 - maxDailyChange)
+    maxDownChange = localPrevDown * (1 + maxDailyChange)
+    uDownToday = clampValue(uDownAutoBase, minDownChange, maxDownChange)
+    
+    // Calculate skew ratio for diagnostics
+    skewRatio = uDownToday / uUpToday
+    
+    [uUpToday, uDownToday, f, skewRatio]
+
+// Check if current bar is at or after the lock time (but same day)
+isAtOrAfterLockTime() =>
+    currentHour = hour(time, timeZone)
+    currentMinute = minute(time, timeZone)
+    lockTimeInMinutes = nyOpenHour * 60 + nyOpenMinute
+    currentTimeInMinutes = currentHour * 60 + currentMinute
+    currentTimeInMinutes >= lockTimeInMinutes
+
+// Function to convert string line style to line.style constant
+getLineStyle(styleString) =>
+    switch styleString
+        "Solid" => line.style_solid
+        "Dotted" => line.style_dotted
+        "Dashed" => line.style_dashed
+        "Arrow Left" => line.style_arrow_left
+        "Arrow Right" => line.style_arrow_right
+        "Arrow Both" => line.style_arrow_both
+        => line.style_solid
+
+// Function to parse session string and extract start/end hours and minutes
+parseSessionString(sessionStr) =>
+    parts = str.split(sessionStr, "-")
+    if array.size(parts) == 2
+        startStr = array.get(parts, 0)
+        endStr = array.get(parts, 1)
+        
+        startHour = int(str.tonumber(str.substring(startStr, 0, 2)))
+        startMinute = int(str.tonumber(str.substring(startStr, 2, 4)))
+        endHour = int(str.tonumber(str.substring(endStr, 0, 2)))
+        endMinute = int(str.tonumber(str.substring(endStr, 2, 4)))
+        
+        [startHour, startMinute, endHour, endMinute]
+    else
+        [rangeStartHour, rangeStartMinute, rangeEndHour, rangeEndMinute]
+
+// Function to get session times based on preset
+getSessionTimes() =>
+    if rangePreset == "Asia"
+        parseSessionString(asiaSession)
+    else if rangePreset == "London"
+        parseSessionString(londonSession)
+    else if rangePreset == "NY AM"
+        parseSessionString(nyAmSession)
+    else if rangePreset == "NY PM"
+        parseSessionString(nyPmSession)
+    else
+        [rangeStartHour, rangeStartMinute, rangeEndHour, rangeEndMinute]
+
+// Helper function to calculate the next session start time
+getNextSessionStartTime(currentEndTime) =>
+    [startHour, startMinute, endHour, endMinute] = getSessionTimes()
+    
+    endYear = year(currentEndTime, timeZone)
+    endMonth = month(currentEndTime, timeZone)
+    endDay = dayofmonth(currentEndTime, timeZone)
+    endHourTz = hour(currentEndTime, timeZone)
+    
+    if startHour > endHour and endHourTz < startHour
+        timestamp(timeZone, endYear, endMonth, endDay, startHour, startMinute)
+    else
+        nextDayTime = currentEndTime + (24 * 60 * 60 * 1000)
+        nextDayOfWeek = dayofweek(nextDayTime, timeZone)
+        
+        // Skip weekends: if next day is Saturday (7), skip to Monday
+        if nextDayOfWeek == dayofweek.saturday
+            nextDayTime := nextDayTime + (2 * 24 * 60 * 60 * 1000)  // Add 2 days
+        // If next day is Sunday (1), skip to Monday  
+        else if nextDayOfWeek == dayofweek.sunday
+            nextDayTime := nextDayTime + (1 * 24 * 60 * 60 * 1000)  // Add 1 day
+        
+        timestamp(timeZone, year(nextDayTime, timeZone), month(nextDayTime, timeZone), 
+                  dayofmonth(nextDayTime, timeZone), startHour, startMinute)
+
+getSessionEnd(int startTs) =>
+    [startHour, startMinute, endHour, endMinute] = getSessionTimes()
+    int deltaMinutes = ((endHour * 60 + endMinute) - (startHour * 60 + startMinute))
+    if deltaMinutes <= 0
+        deltaMinutes += 1440
+    startTs + deltaMinutes * 60 * 1000
+
+// Get label size for zones
+getZoneLabelSize() =>
+    switch zoneLabelSize
+        "tiny" => size.tiny
+        "small" => size.small
+        "normal" => size.normal
+        "large" => size.large
+        "huge" => size.huge
+        => size.normal
+
+// Get label size for range levels
+getRangeLevelLabelSize() =>
+    switch rangeLevelLabelSize
+        "tiny" => size.tiny
+        "small" => size.small
+        "normal" => size.normal
+        "large" => size.large
+        "huge" => size.huge
+        => size.small
+
+isInCustomRange() =>
+    [startHour, startMinute, endHour, endMinute] = getSessionTimes()
+    tzHour = hour(time, timeZone)
+    tzMinute = minute(time, timeZone)
+    currentMinutes = tzHour * 60 + tzMinute
+    startMinutes = startHour * 60 + startMinute
+    endMinutes = endHour * 60 + endMinute
+    if startMinutes > endMinutes
+        currentMinutes >= startMinutes or currentMinutes <= endMinutes
+    else
+        currentMinutes >= startMinutes and currentMinutes <= endMinutes
+
+isMarketActive() =>
+    dayOfWeekTz = dayofweek(time, timeZone)
+    dayOfWeekTz >= 1 and dayOfWeekTz <= 7
+
+// Convert points to price - just use the points directly as price units
+pointsToPrice(points) =>
+    points  // Direct price points, not tick conversion
+
+// Get table position constant
+getTablePosition() =>
+    switch tablePosition
+        "Top Left" => position.top_left
+        "Top Center" => position.top_center
+        "Top Right" => position.top_right
+        "Middle Left" => position.middle_left
+        "Middle Center" => position.middle_center
+        "Middle Right" => position.middle_right
+        "Bottom Left" => position.bottom_left
+        "Bottom Center" => position.bottom_center
+        "Bottom Right" => position.bottom_right
+        => position.top_right
+
+// Get table text size constant
+getTableTextSize() =>
+    switch tableTextSize
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        "Huge" => size.huge
+        => size.normal
+
+// Populate information table with session data (returns data, doesn't modify table)
+getTableData(rangeSession) =>
+    atrStr = na(rangeSession.atrValue) ? "N/A" : str.tostring(rangeSession.atrValue, "#.##")
+    upStr = na(rangeSession.lockedUpDistance) ? "N/A" : str.tostring(rangeSession.lockedUpDistance, "#.##")
+    downStr = na(rangeSession.lockedDownDistance) ? "N/A" : str.tostring(rangeSession.lockedDownDistance, "#.##")
+    [atrStr, upStr, downStr]
+
+// Create range level lines (H, L, Q1, EQ, Q3)
+createRangeLevelLines(rangeSession, endTime) =>
+    if not na(rangeSession.finalHigh) and not na(rangeSession.finalLow)
+        rangeSize = rangeSession.finalHigh - rangeSession.finalLow
+        
+        // Calculate label offset (time-based, approximately 5 minutes to the right)
+        int labelOffset = int(5 * 60 * 1000)  // 5 minutes offset for label positioning
+        
+        // High/Low lines (solid)
+        if showHighLowLines
+            rangeSession.highLine := line.new(x1=rangeSession.endTime, y1=rangeSession.finalHigh, x2=endTime, y2=rangeSession.finalHigh, xloc=xloc.bar_time, color=color.new(highLowLineColor, highLowLineOpacity), width=1, style=line.style_solid)
+            rangeSession.lowLine := line.new(x1=rangeSession.endTime, y1=rangeSession.finalLow, x2=endTime, y2=rangeSession.finalLow, xloc=xloc.bar_time, color=color.new(highLowLineColor, highLowLineOpacity), width=1, style=line.style_solid)
+            
+            // Create labels for High and Low - positioned to the right of the line end
+            if showRangeLevelLabels
+                rangeSession.highLabel := label.new(x=endTime + labelOffset, y=rangeSession.finalHigh, text="H", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=highLowLineColor, size=getRangeLevelLabelSize(), style=label.style_label_left)
+                rangeSession.lowLabel := label.new(x=endTime + labelOffset, y=rangeSession.finalLow, text="L", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=highLowLineColor, size=getRangeLevelLabelSize(), style=label.style_label_left)
+        
+        // Quarter lines (dotted)
+        if showQuarterLines
+            q1Price = rangeSession.finalLow + (rangeSize * 0.25)
+            q3Price = rangeSession.finalLow + (rangeSize * 0.75)
+            rangeSession.q1Line := line.new(x1=rangeSession.endTime, y1=q1Price, x2=endTime, y2=q1Price, xloc=xloc.bar_time, color=color.new(quarterLineColor, quarterLineOpacity), width=1, style=line.style_dotted)
+            rangeSession.q3Line := line.new(x1=rangeSession.endTime, y1=q3Price, x2=endTime, y2=q3Price, xloc=xloc.bar_time, color=color.new(quarterLineColor, quarterLineOpacity), width=1, style=line.style_dotted)
+            
+            // Create labels for Q1 and Q3 - positioned to the right of the line end
+            if showRangeLevelLabels
+                rangeSession.q1Label := label.new(x=endTime + labelOffset, y=q1Price, text="Q3", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=quarterLineColor, size=getRangeLevelLabelSize(), style=label.style_label_left)
+                rangeSession.q3Label := label.new(x=endTime + labelOffset, y=q3Price, text="Q1", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=quarterLineColor, size=getRangeLevelLabelSize(), style=label.style_label_left)
+        
+        // EQ line (solid)
+        if showEqLine
+            eqPrice = rangeSession.finalLow + (rangeSize * 0.5)
+            rangeSession.eqLine := line.new(x1=rangeSession.endTime, y1=eqPrice, x2=endTime, y2=eqPrice, xloc=xloc.bar_time, color=color.new(eqLineColor, eqLineOpacity), width=1, style=line.style_solid)
+            
+            // Create label for EQ - positioned to the right of the line end
+            if showRangeLevelLabels
+                rangeSession.eqLabel := label.new(x=endTime + labelOffset, y=eqPrice, text="EQ", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=eqLineColor, size=getRangeLevelLabelSize(), style=label.style_label_left)
+
+// Create Fibonacci zones with separate up and down distances
+createFibZones(rangeSession, endTime) =>
+    if not na(rangeSession.finalHigh) and not na(rangeSession.finalLow) and not na(rangeSession.lockedUpDistance) and not na(rangeSession.lockedDownDistance)
+        // Use locked distances for this session (already calculated at lock time)
+        upDistancePrice = pointsToPrice(rangeSession.lockedUpDistance)
+        downDistancePrice = pointsToPrice(rangeSession.lockedDownDistance)
+        
+        // Get the line style
+        lineStyleConst = getLineStyle(line300Style)
+        
+        // UPWARD PROJECTIONS (zones above the range)
+        // Start at low, project upward using absolute fib values and upDistancePrice
+        upLevel200 = rangeSession.finalLow + (upDistancePrice * math.abs(fib200))
+        upLevel233 = rangeSession.finalLow + (upDistancePrice * math.abs(fib233))
+        upLevel250 = rangeSession.finalLow + (upDistancePrice * math.abs(fib250))
+        upLevel300 = rangeSession.finalLow + (upDistancePrice * math.abs(fib300))
+        upLevel400 = rangeSession.finalLow + (upDistancePrice * math.abs(fib400))
+        upLevel450 = rangeSession.finalLow + (upDistancePrice * math.abs(fib450))
+        upLevel600 = rangeSession.finalLow + (upDistancePrice * math.abs(fib600))
+        upLevel650 = rangeSession.finalLow + (upDistancePrice * math.abs(fib650))
+        upLevel800 = rangeSession.finalLow + (upDistancePrice * math.abs(fib800))
+        upLevel850 = rangeSession.finalLow + (upDistancePrice * math.abs(fib850))
+        
+        // DOWNWARD PROJECTIONS (zones below the range)
+        // Start at high, project downward using absolute fib values and downDistancePrice
+        downLevel200 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib200))
+        downLevel233 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib233))
+        downLevel250 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib250))
+        downLevel300 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib300))
+        downLevel400 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib400))
+        downLevel450 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib450))
+        downLevel600 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib600))
+        downLevel650 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib650))
+        downLevel800 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib800))
+        downLevel850 = rangeSession.finalHigh - (downDistancePrice * math.abs(fib850))
+        
+        // Visibility checks: only show zones/lines that are completely outside range
+        // Upward zones must be completely above finalHigh (both inner AND outer edges)
+        // Downward zones must be completely below finalLow (both inner AND outer edges)
+        showUpLevel1 = upLevel250 > rangeSession.finalHigh and upLevel200 > rangeSession.finalHigh
+        showUpLine300 = upLevel300 > rangeSession.finalHigh
+        showUpAVR = upLevel450 > rangeSession.finalHigh and upLevel400 > rangeSession.finalHigh
+        showUpAVRPlus = upLevel650 > rangeSession.finalHigh and upLevel600 > rangeSession.finalHigh
+        showUpMAX = upLevel850 > rangeSession.finalHigh and upLevel800 > rangeSession.finalHigh
+        
+        showDownLevel1 = downLevel250 < rangeSession.finalLow and downLevel200 < rangeSession.finalLow
+        showDownLine300 = downLevel300 < rangeSession.finalLow
+        showDownAVR = downLevel450 < rangeSession.finalLow and downLevel400 < rangeSession.finalLow
+        showDownAVRPlus = downLevel650 < rangeSession.finalLow and downLevel600 < rangeSession.finalLow
+        showDownMAX = downLevel850 < rangeSession.finalLow and downLevel800 < rangeSession.finalLow
+        
+        // Create upward zones (above the range) only if completely outside range
+        if show233_250Zone and showUpLevel1
+            // Outer Level 1 box (2.0 to 2.5)
+            rangeSession.upZone1 := box.new(rangeSession.endTime, upLevel200, endTime, upLevel250, xloc=xloc.bar_time, bgcolor=color.new(zone1Color, zone1Opacity), border_color=na)
+            // Inner shaded area (2.33 to 2.5)
+            rangeSession.upZone1Inner := box.new(rangeSession.endTime, upLevel233, endTime, upLevel250, xloc=xloc.bar_time, bgcolor=color.new(zone1InnerColor, zone1InnerOpacity), border_color=na)
+            // Create label for upward zone 1 (centered in full zone)
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (upLevel200 + upLevel250) / 2
+                rangeSession.upZone1Label := label.new(labelX, labelY, zone1LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone1LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show400_450Zone and showUpAVR
+            rangeSession.upZone2 := box.new(rangeSession.endTime, upLevel400, endTime, upLevel450, xloc=xloc.bar_time, bgcolor=color.new(zone2Color, zone2Opacity), border_color=na)
+            // Create label for upward zone 2
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (upLevel400 + upLevel450) / 2
+                rangeSession.upZone2Label := label.new(labelX, labelY, zone2LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone2LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show600_650Zone and showUpAVRPlus
+            rangeSession.upZone3 := box.new(rangeSession.endTime, upLevel600, endTime, upLevel650, xloc=xloc.bar_time, bgcolor=color.new(zone3Color, zone3Opacity), border_color=na)
+            // Create label for upward zone 3
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (upLevel600 + upLevel650) / 2
+                rangeSession.upZone3Label := label.new(labelX, labelY, zone3LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone3LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show800_850Zone and showUpMAX
+            rangeSession.upZone4 := box.new(rangeSession.endTime, upLevel800, endTime, upLevel850, xloc=xloc.bar_time, bgcolor=color.new(zone4Color, zone4Opacity), border_color=na)
+            // Create label for upward zone 4
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (upLevel800 + upLevel850) / 2
+                rangeSession.upZone4Label := label.new(labelX, labelY, zone4LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone4LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show300Line and showUpLine300
+            rangeSession.upLine300 := line.new(rangeSession.endTime, upLevel300, endTime, upLevel300, xloc=xloc.bar_time, color=color.new(line300Color, line300Opacity), width=line300Width, style=lineStyleConst)
+            // Create label for upward AVR- line
+            if showZoneLabels
+                int labelOffset = int(5 * 60 * 1000)  // 5 minutes offset for label positioning
+                rangeSession.upLine300Label := label.new(x=endTime + labelOffset, y=upLevel300, text="AVR-", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=line300Color, size=getZoneLabelSize(), style=label.style_label_left)
+        
+        // Create downward zones only if completely outside range
+        if show233_250Zone and showDownLevel1
+            // Outer Level 1 box (2.5 to 2.0, reversed for downward)
+            rangeSession.downZone1 := box.new(rangeSession.endTime, downLevel250, endTime, downLevel200, xloc=xloc.bar_time, bgcolor=color.new(zone1Color, zone1Opacity), border_color=na)
+            // Inner shaded area (2.5 to 2.33, reversed for downward)
+            rangeSession.downZone1Inner := box.new(rangeSession.endTime, downLevel250, endTime, downLevel233, xloc=xloc.bar_time, bgcolor=color.new(zone1InnerColor, zone1InnerOpacity), border_color=na)
+            // Create label for downward zone 1 (centered in full zone)
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (downLevel200 + downLevel250) / 2
+                rangeSession.downZone1Label := label.new(labelX, labelY, zone1LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone1LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show400_450Zone and showDownAVR
+            rangeSession.downZone2 := box.new(rangeSession.endTime, downLevel450, endTime, downLevel400, xloc=xloc.bar_time, bgcolor=color.new(zone2Color, zone2Opacity), border_color=na)
+            // Create label for downward zone 2
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (downLevel400 + downLevel450) / 2
+                rangeSession.downZone2Label := label.new(labelX, labelY, zone2LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone2LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show600_650Zone and showDownAVRPlus
+            rangeSession.downZone3 := box.new(rangeSession.endTime, downLevel650, endTime, downLevel600, xloc=xloc.bar_time, bgcolor=color.new(zone3Color, zone3Opacity), border_color=na)
+            // Create label for downward zone 3
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (downLevel600 + downLevel650) / 2
+                rangeSession.downZone3Label := label.new(labelX, labelY, zone3LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone3LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show800_850Zone and showDownMAX
+            rangeSession.downZone4 := box.new(rangeSession.endTime, downLevel850, endTime, downLevel800, xloc=xloc.bar_time, bgcolor=color.new(zone4Color, zone4Opacity), border_color=na)
+            // Create label for downward zone 4
+            if showZoneLabels
+                labelX = zoneLabelPosition == "left" ? rangeSession.endTime : zoneLabelPosition == "center" ? int((rangeSession.endTime + endTime) / 2) : endTime
+                labelY = (downLevel800 + downLevel850) / 2
+                rangeSession.downZone4Label := label.new(labelX, labelY, zone4LabelText, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=zone4LabelColor, size=getZoneLabelSize(), style=label.style_text_outline)
+        
+        if show300Line and showDownLine300
+            rangeSession.downLine300 := line.new(rangeSession.endTime, downLevel300, endTime, downLevel300, xloc=xloc.bar_time, color=color.new(line300Color, line300Opacity), width=line300Width, style=lineStyleConst)
+            // Create label for downward AVR- line
+            if showZoneLabels
+                int labelOffset = int(5 * 60 * 1000)  // 5 minutes offset for label positioning
+                rangeSession.downLine300Label := label.new(x=endTime + labelOffset, y=downLevel300, text="AVR-", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=line300Color, size=getZoneLabelSize(), style=label.style_label_left)
+
+// Update zones and lines to extend to new end time
+updateZonesAndLines(rangeSession, newEndTime) =>
+    // Update Fibonacci zones
+    if not na(rangeSession.upZone1)
+        box.set_right(rangeSession.upZone1, newEndTime)
+    if not na(rangeSession.upZone1Inner)
+        box.set_right(rangeSession.upZone1Inner, newEndTime)
+    if not na(rangeSession.upZone2)
+        box.set_right(rangeSession.upZone2, newEndTime)
+    if not na(rangeSession.upZone3)
+        box.set_right(rangeSession.upZone3, newEndTime)
+    if not na(rangeSession.upZone4)
+        box.set_right(rangeSession.upZone4, newEndTime)
+    if not na(rangeSession.upLine300)
+        line.set_x2(rangeSession.upLine300, newEndTime)
+    if not na(rangeSession.downZone1)
+        box.set_right(rangeSession.downZone1, newEndTime)
+    if not na(rangeSession.downZone1Inner)
+        box.set_right(rangeSession.downZone1Inner, newEndTime)
+    if not na(rangeSession.downZone2)
+        box.set_right(rangeSession.downZone2, newEndTime)
+    if not na(rangeSession.downZone3)
+        box.set_right(rangeSession.downZone3, newEndTime)
+    if not na(rangeSession.downZone4)
+        box.set_right(rangeSession.downZone4, newEndTime)
+    if not na(rangeSession.downLine300)
+        line.set_x2(rangeSession.downLine300, newEndTime)
+    
+    // Update range level lines
+    if not na(rangeSession.highLine)
+        line.set_x2(rangeSession.highLine, newEndTime)
+    if not na(rangeSession.lowLine)
+        line.set_x2(rangeSession.lowLine, newEndTime)
+    if not na(rangeSession.q1Line)
+        line.set_x2(rangeSession.q1Line, newEndTime)
+    if not na(rangeSession.eqLine)
+        line.set_x2(rangeSession.eqLine, newEndTime)
+    if not na(rangeSession.q3Line)
+        line.set_x2(rangeSession.q3Line, newEndTime)
+    
+    // Update range level label positions to stay offset to the right of the line end
+    int labelOffset = int(5 * 60 * 1000)  // 5 minutes offset
+    if not na(rangeSession.highLabel)
+        label.set_x(rangeSession.highLabel, newEndTime + labelOffset)
+    if not na(rangeSession.lowLabel)
+        label.set_x(rangeSession.lowLabel, newEndTime + labelOffset)
+    if not na(rangeSession.q1Label)
+        label.set_x(rangeSession.q1Label, newEndTime + labelOffset)
+    if not na(rangeSession.eqLabel)
+        label.set_x(rangeSession.eqLabel, newEndTime + labelOffset)
+    if not na(rangeSession.q3Label)
+        label.set_x(rangeSession.q3Label, newEndTime + labelOffset)
+    
+    // Update AVR- line label positions to stay offset to the right of the line end
+    if not na(rangeSession.upLine300Label)
+        label.set_x(rangeSession.upLine300Label, newEndTime + labelOffset)
+    if not na(rangeSession.downLine300Label)
+        label.set_x(rangeSession.downLine300Label, newEndTime + labelOffset)
+    
+    // Update Fibonacci zone label positions if they exist
+    if not na(rangeSession.upZone1Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.upZone1Label, newEndTime)
+    if not na(rangeSession.upZone2Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.upZone2Label, newEndTime)
+    if not na(rangeSession.upZone3Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.upZone3Label, newEndTime)
+    if not na(rangeSession.upZone4Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.upZone4Label, newEndTime)
+    if not na(rangeSession.downZone1Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.downZone1Label, newEndTime)
+    if not na(rangeSession.downZone2Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.downZone2Label, newEndTime)
+    if not na(rangeSession.downZone3Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.downZone3Label, newEndTime)
+    if not na(rangeSession.downZone4Label) and zoneLabelPosition == "right"
+        label.set_x(rangeSession.downZone4Label, newEndTime)
+    if zoneLabelPosition == "center"
+        centerX = int((rangeSession.endTime + newEndTime) / 2)
+        if not na(rangeSession.upZone1Label)
+            label.set_x(rangeSession.upZone1Label, centerX)
+        if not na(rangeSession.upZone2Label)
+            label.set_x(rangeSession.upZone2Label, centerX)
+        if not na(rangeSession.upZone3Label)
+            label.set_x(rangeSession.upZone3Label, centerX)
+        if not na(rangeSession.upZone4Label)
+            label.set_x(rangeSession.upZone4Label, centerX)
+        if not na(rangeSession.downZone1Label)
+            label.set_x(rangeSession.downZone1Label, centerX)
+        if not na(rangeSession.downZone2Label)
+            label.set_x(rangeSession.downZone2Label, centerX)
+        if not na(rangeSession.downZone3Label)
+            label.set_x(rangeSession.downZone3Label, centerX)
+        if not na(rangeSession.downZone4Label)
+            label.set_x(rangeSession.downZone4Label, centerX)
+
+// Delete a session's drawings
+deleteSession(sess) =>
+    if not na(sess.rangeBox)
+        box.delete(sess.rangeBox)
+    if not na(sess.upZone1)
+        box.delete(sess.upZone1)
+    if not na(sess.upZone1Inner)
+        box.delete(sess.upZone1Inner)
+    if not na(sess.upZone2)
+        box.delete(sess.upZone2)
+    if not na(sess.upZone3)
+        box.delete(sess.upZone3)
+    if not na(sess.upZone4)
+        box.delete(sess.upZone4)
+    if not na(sess.upLine300)
+        line.delete(sess.upLine300)
+    if not na(sess.upLine300Label)
+        label.delete(sess.upLine300Label)
+    if not na(sess.downZone1)
+        box.delete(sess.downZone1)
+    if not na(sess.downZone1Inner)
+        box.delete(sess.downZone1Inner)
+    if not na(sess.downZone2)
+        box.delete(sess.downZone2)
+    if not na(sess.downZone3)
+        box.delete(sess.downZone3)
+    if not na(sess.downZone4)
+        box.delete(sess.downZone4)
+    if not na(sess.downLine300)
+        line.delete(sess.downLine300)
+    if not na(sess.downLine300Label)
+        label.delete(sess.downLine300Label)
+    // Delete zone labels
+    if not na(sess.upZone1Label)
+        label.delete(sess.upZone1Label)
+    if not na(sess.upZone2Label)
+        label.delete(sess.upZone2Label)
+    if not na(sess.upZone3Label)
+        label.delete(sess.upZone3Label)
+    if not na(sess.upZone4Label)
+        label.delete(sess.upZone4Label)
+    if not na(sess.downZone1Label)
+        label.delete(sess.downZone1Label)
+    if not na(sess.downZone2Label)
+        label.delete(sess.downZone2Label)
+    if not na(sess.downZone3Label)
+        label.delete(sess.downZone3Label)
+    if not na(sess.downZone4Label)
+        label.delete(sess.downZone4Label)
+    // Delete range level lines
+    if not na(sess.highLine)
+        line.delete(sess.highLine)
+    if not na(sess.lowLine)
+        line.delete(sess.lowLine)
+    if not na(sess.q1Line)
+        line.delete(sess.q1Line)
+    if not na(sess.eqLine)
+        line.delete(sess.eqLine)
+    if not na(sess.q3Line)
+        line.delete(sess.q3Line)
+    // Delete range level labels
+    if not na(sess.highLabel)
+        label.delete(sess.highLabel)
+    if not na(sess.lowLabel)
+        label.delete(sess.lowLabel)
+    if not na(sess.q1Label)
+        label.delete(sess.q1Label)
+    if not na(sess.eqLabel)
+        label.delete(sess.eqLabel)
+    if not na(sess.q3Label)
+        label.delete(sess.q3Label)
+
+// Clean up old sessions
+cleanupOldSessions() =>
+    while array.size(sessions) > lookbackPeriod
+        oldSession = array.shift(sessions)
+        deleteSession(oldSession)
+
+// ==================== MAIN LOGIC ====================
+
+// Check if we're in a session
+bool inRangeNow = isInCustomRange() and isMarketActive()
+bool newSessionCondition = inRangeNow and (na(currentSession) or currentSession.sessionComplete)
+bool atOrAfterLock = isAtOrAfterLockTime()
+
+if newSessionCondition
+    // Calculate the new session start time
+    [startHour, startMinute, endHour, endMinute] = getSessionTimes()
+    newStartTime = timestamp(timeZone, year(time, timeZone), month(time, timeZone), dayofmonth(time, timeZone), startHour, startMinute)
+    
+    // Finalize previous session zones/lines to end at new session start (only if not already finalized)
+    if array.size(sessions) > 0
+        prevSession = array.get(sessions, array.size(sessions) - 1)
+        if not na(prevSession) and prevSession.sessionComplete and not prevSession.zonesFinalizedToNextSession
+            updateZonesAndLines(prevSession, newStartTime)
+            prevSession.zonesFinalizedToNextSession := true
+    
+    // Create new session
+    currentSession := RangeSession.new()
+    currentSession.startTime := newStartTime
+    if startHour > endHour and hour(time, timeZone) < startHour
+        currentSession.startTime := currentSession.startTime - (24 * 60 * 60 * 1000)
+    
+    currentSession.endTime := getSessionEnd(currentSession.startTime)
+    array.push(sessions, currentSession)
+    cleanupOldSessions()
+
+// Update current session during Asia range building
+if not na(currentSession) and not currentSession.projectionsLocked
+    int sessionEndTime = getSessionEnd(currentSession.startTime)
+    
+    // Build Asia range during session
+    if time <= sessionEndTime and inRangeNow
+        // Update high and low during Asia session
+        currentSession.highPrice := math.max(currentSession.highPrice, high)
+        currentSession.lowPrice := math.min(currentSession.lowPrice, low)
+        
+        // Update range box
+        if showRangeBox
+            if na(currentSession.rangeBox)
+                currentSession.rangeBox := box.new(currentSession.startTime, currentSession.highPrice, time, currentSession.lowPrice, border_color=na, bgcolor=color.new(rangeBoxColor, rangeBoxOpacity), extend=extend.none, xloc=xloc.bar_time)
+            else
+                box.set_top(currentSession.rangeBox, currentSession.highPrice)
+                box.set_bottom(currentSession.rangeBox, currentSession.lowPrice)
+                box.set_right(currentSession.rangeBox, time)
+
+// LOCK AT LOCK TIME: Finalize range and compute projections
+// This happens when we reach or pass the lock time
+if not na(currentSession) and not currentSession.projectionsLocked and atOrAfterLock and not inRangeNow
+    // Finalize Asia high and low (use accumulated values from session)
+    currentSession.finalHigh := currentSession.highPrice
+    currentSession.finalLow := currentSession.lowPrice
+    currentSession.lockTime := time
+    
+    // Calculate U values based on mode
+    if projectionMode == "Auto"
+        // Auto mode: use ATR-based calculation
+        [uUp, uDown, scaleFac, skewRat] = calculateAutoUValues(yesterdayATR, prevUpDistance, prevDownDistance)
+        currentSession.lockedUpDistance := uUp
+        currentSession.lockedDownDistance := uDown
+        currentSession.atrValue := yesterdayATR
+        currentSession.scaleFactor := scaleFac
+        currentSession.skewRatio := skewRat
+        
+        // Update prev values for next day
+        prevUpDistance := uUp
+        prevDownDistance := uDown
+    else
+        // Manual mode: use fixed input values
+        currentSession.lockedUpDistance := upPointDistance
+        currentSession.lockedDownDistance := downPointDistance
+        currentSession.atrValue := yesterdayATR
+        currentSession.scaleFactor := 1.0
+        currentSession.skewRatio := downPointDistance / upPointDistance
+    
+    // Mark projections as locked
+    currentSession.projectionsLocked := true
+    
+    // Finalize range box at lock time
+    if showRangeBox and not na(currentSession.rangeBox)
+        box.set_right(currentSession.rangeBox, currentSession.endTime)
+        box.set_top(currentSession.rangeBox, currentSession.finalHigh)
+        box.set_bottom(currentSession.rangeBox, currentSession.finalLow)
+    
+    // Calculate next session start for proper line ending
+    int sessionEndTime = getSessionEnd(currentSession.startTime)
+    nextSessionStart = getNextSessionStartTime(sessionEndTime)
+    
+    // Create range level lines
+    createRangeLevelLines(currentSession, nextSessionStart)
+    
+    // Create Fibonacci zones using locked distances
+    createFibZones(currentSession, nextSessionStart)
+    
+    // Mark session as complete and zones finalized
+    currentSession.sessionComplete := true
+    currentSession.zonesFinalizedToNextSession := true
+
+// Extend the most recent completed session zones to current bar (only if NOT in a new range session)
+// Skip if session has been finalized to the next session start
+if array.size(sessions) > 0 and not inRangeNow
+    for i = array.size(sessions) - 1 to 0
+        sess = array.get(sessions, i)
+        if not na(sess) and sess.sessionComplete and not sess.zonesFinalizedToNextSession
+            currentBarTime = time
+            updateZonesAndLines(sess, currentBarTime)
+            break
+
+// Update zone label positions for all sessions to keep them properly positioned
+// This runs last to ensure all box updates are complete before reading coordinates
+if array.size(sessions) > 0 and zoneLabelPosition == "center"
+    for i = 0 to array.size(sessions) - 1
+        sess = array.get(sessions, i)
+        // Only update labels for sessions that have zones finalized
+        if not na(sess) and sess.sessionComplete and sess.zonesFinalizedToNextSession
+            // Read the actual box coordinates to calculate true center
+            // Use any non-na box to get the coordinates (they all share the same left/right)
+            box referenceBox = na
+            if not na(sess.upZone1)
+                referenceBox := sess.upZone1
+            else if not na(sess.upZone2)
+                referenceBox := sess.upZone2
+            else if not na(sess.upZone3)
+                referenceBox := sess.upZone3
+            else if not na(sess.upZone4)
+                referenceBox := sess.upZone4
+            else if not na(sess.downZone1)
+                referenceBox := sess.downZone1
+            else if not na(sess.downZone2)
+                referenceBox := sess.downZone2
+            else if not na(sess.downZone3)
+                referenceBox := sess.downZone3
+            else if not na(sess.downZone4)
+                referenceBox := sess.downZone4
+            
+            if not na(referenceBox)
+                // Get actual box coordinates and calculate true center
+                int boxLeft = box.get_left(referenceBox)
+                int boxRight = box.get_right(referenceBox)
+                centerX = int((boxLeft + boxRight) / 2)
+                
+                // Update all zone labels to the true center
+                if not na(sess.upZone1Label)
+                    label.set_x(sess.upZone1Label, centerX)
+                if not na(sess.upZone2Label)
+                    label.set_x(sess.upZone2Label, centerX)
+                if not na(sess.upZone3Label)
+                    label.set_x(sess.upZone3Label, centerX)
+                if not na(sess.upZone4Label)
+                    label.set_x(sess.upZone4Label, centerX)
+                if not na(sess.downZone1Label)
+                    label.set_x(sess.downZone1Label, centerX)
+                if not na(sess.downZone2Label)
+                    label.set_x(sess.downZone2Label, centerX)
+                if not na(sess.downZone3Label)
+                    label.set_x(sess.downZone3Label, centerX)
+                if not na(sess.downZone4Label)
+                    label.set_x(sess.downZone4Label, centerX)
+
+// ==================== INFORMATION TABLE ====================
+// Update table with most recent locked session data
+if showTable
+    // Find the most recent session with locked projections
+    var float displayAtr = na
+    var float displayUp = na
+    var float displayDown = na
+    
+    if array.size(sessions) > 0
+        for i = array.size(sessions) - 1 to 0
+            sess = array.get(sessions, i)
+            if not na(sess) and sess.projectionsLocked
+                displayAtr := sess.atrValue
+                displayUp := sess.lockedUpDistance
+                displayDown := sess.lockedDownDistance
+                break
+    
+    // Create or update table
+    if na(infoTable)
+        infoTable := table.new(getTablePosition(), 3, 4, bgcolor=color.new(color.black, 10), border_width=2, border_color=color.new(color.gray, 50))
+    else
+        table.set_position(infoTable, getTablePosition())
+    
+    // Populate table
+    textSize = getTableTextSize()
+    
+    // Header row
+    table.cell(infoTable, 0, 0, "Metric", text_color=color.white, text_size=textSize, bgcolor=color.new(color.gray, 30))
+    table.cell(infoTable, 1, 0, "Value", text_color=color.white, text_size=textSize, bgcolor=color.new(color.gray, 30))
+    table.cell(infoTable, 2, 0, "Unit", text_color=color.white, text_size=textSize, bgcolor=color.new(color.gray, 30))
+    
+    // ATR20 row
+    atrDisplay = na(displayAtr) ? "N/A" : str.tostring(displayAtr, "#.##")
+    table.cell(infoTable, 0, 1, "ATR20", text_color=color.white, text_size=textSize, bgcolor=color.new(color.blue, 80))
+    table.cell(infoTable, 1, 1, atrDisplay, text_color=color.white, text_size=textSize, bgcolor=color.new(color.blue, 80))
+    table.cell(infoTable, 2, 1, "pts", text_color=color.white, text_size=textSize, bgcolor=color.new(color.blue, 80))
+    
+    // Up Projection row
+    upDisplay = na(displayUp) ? "N/A" : str.tostring(displayUp, "#.##")
+    table.cell(infoTable, 0, 2, "Up Proj", text_color=color.white, text_size=textSize, bgcolor=color.new(color.green, 80))
+    table.cell(infoTable, 1, 2, upDisplay, text_color=color.white, text_size=textSize, bgcolor=color.new(color.green, 80))
+    table.cell(infoTable, 2, 2, "pts", text_color=color.white, text_size=textSize, bgcolor=color.new(color.green, 80))
+    
+    // Down Projection row
+    downDisplay = na(displayDown) ? "N/A" : str.tostring(displayDown, "#.##")
+    table.cell(infoTable, 0, 3, "Down Proj", text_color=color.white, text_size=textSize, bgcolor=color.new(color.red, 80))
+    table.cell(infoTable, 1, 3, downDisplay, text_color=color.white, text_size=textSize, bgcolor=color.new(color.red, 80))
+    table.cell(infoTable, 2, 3, "pts", text_color=color.white, text_size=textSize, bgcolor=color.new(color.red, 80))
+else if not na(infoTable)
+    // Clear table if disabled
+    table.delete(infoTable)
+    infoTable := na
