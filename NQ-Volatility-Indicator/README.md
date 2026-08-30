@@ -19,7 +19,8 @@ This is **IMPLEMENTATION IN PROGRESS**, not FULL ACCEPTANCE COMPLETE.
 ## Layout
 
 ```
-NQ-Volatility-Indicator/
+ATAS/
+└── NQ-Volatility-Indicator/
 ├── NQVolatility.sln
 ├── pine/NQ-Volatility-Range.pine      # vendored canonical source
 ├── src/NQVolatility.Core/             # netstandard2.0, zero dependencies

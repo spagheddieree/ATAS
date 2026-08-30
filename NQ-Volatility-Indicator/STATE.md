@@ -2,54 +2,50 @@
 
 Authoritative resumability record. Update on every work session.
 
-**Last updated:** 2026-08-30
+**Last updated:** 2026-08-30 (migrated to spagheddieree/ATAS)
 
 ---
 
-## 1. Environment (as actually found — NOT as assumed by the brief)
+## 1. Environment (as actually found)
 
-The brief assumes a Windows machine with a post-migration Projects workspace and
-an existing `ATAS` repository. **Neither exists in the environment this work was
-produced in.** Verified findings:
+The brief assumed a Windows machine with a post-migration Projects workspace and
+an existing `ATAS` repository. Neither existed. Verified findings:
 
 | Item | Finding |
 |---|---|
 | Host | Ephemeral **Linux** container (`Linux 6.18.44-fc-v22 x86_64`), Claude Code on the web |
 | Projects root | **Does not exist.** No Windows filesystem, no `G:\`, nothing to discover |
-| ATAS repository | **Does not exist.** `list_repos` returned 9 repos, none named ATAS |
-| Repos on account | Neverflat-OS, Claude-Self-Improvement-System, NeverFlat-Bouncer, NeverFlat-DJ, NeverFlat-Platform-Launcher, NeverFlat-Live, KnowledgeOS, NF-Bouncer-Bot, PersonalCommandCenter |
-| GitHub scope | `spagheddieree/neverflat-os` only — an ATAS repo could not be created or pushed |
-| Git topology | Exactly one repository: `/home/user/Neverflat-OS/.git`. No nested repos, no submodules, no stashes |
+| ATAS repository | **Did not exist** at the start of this work. Owner created `spagheddieree/ATAS` mid-session; it contained only an initial commit and a two-line README |
+| Existing ATAS projects | **None.** No prior indicator, no established architecture or packaging convention to follow, so the layout below was chosen fresh (brief §18) |
+| Git topology | Two independent repositories, no nesting, no submodules: `Neverflat-OS` (staging origin) and `ATAS` (final home) |
 | Toolchain | `dotnet` was absent; installed `dotnet-sdk-8.0` (8.0.130) via apt. Microsoft's CDN (`builds.dotnet.microsoft.com`) is blocked by network policy; the Ubuntu archive is not |
-| ATAS SDK | **Not available.** Windows-only, ships with the ATAS install |
-
-### 1a. Staging decision — READ THIS FIRST
-
-Because no ATAS repository is reachable and the container is ephemeral, the work
-is staged at:
-
-```
-Neverflat-OS/NQ-Volatility-Indicator/     ← on branch claude/nq-volatility-atas-conversion-ifuil9
-```
-
-This is a **staging location, not the intended home.** The directory contents are
-self-contained and path-independent; relocating is a plain directory move:
-
-```
-<Projects root>/ATAS/NQ-Volatility-Indicator/
-```
-
-Nothing outside `NQ-Volatility-Indicator/` was touched — no NeverFlat OS code,
-config, or docs were modified.
+| ATAS SDK | **Not available.** Windows-only, ships with the ATAS installation |
 
 ## 2. Git
 
+**Final home — this repository.**
+
 | Item | Value |
 |---|---|
-| Repository | `spagheddieree/Neverflat-OS` |
+| Repository | `spagheddieree/ATAS` |
+| Path | `ATAS/NQ-Volatility-Indicator/` |
 | Branch | `claude/nq-volatility-atas-conversion-ifuil9` |
-| Starting HEAD | `99f4736e73182720099ec158e91b0555079789c0` |
-| Pre-existing changes | None — working tree was clean, 0 ahead / 0 behind `main` |
+| Base commit | `37bb54d` ("Initial commit") |
+
+### Provenance
+
+The work was first produced in `spagheddieree/Neverflat-OS` on branch
+`claude/nq-volatility-atas-conversion-ifuil9`, because no ATAS repository was
+reachable at the time and the container is ephemeral. Once the Owner created
+this repository the five commits were replayed here with `git format-patch` /
+`git am`, so authorship, dates and messages are intact. The staging copy was
+then removed from Neverflat-OS so no competing copy can drift.
+
+| Item | Value |
+|---|---|
+| Neverflat-OS starting HEAD | `99f4736e73182720099ec158e91b0555079789c0` |
+| Pre-existing changes there | None — tree was clean, 0 ahead / 0 behind `main` |
+| Neverflat-OS files modified | None outside the staged directory, which was later removed |
 
 ## 3. Source of truth
 
@@ -99,10 +95,11 @@ main ATR parity risk.
 1. **No ATAS SDK/assemblies and no existing ATAS project to pattern-match.**
    Blocks `NQVolatility.ATAS`. The brief (§19) requires verifying the API rather
    than guessing, so the adapter was deliberately not written.
-2. **No ATAS repository exists and GitHub scope excludes creating one.**
-   Blocks placing the project at its intended path.
-3. **No Windows host with ATAS.** Blocks install, GUI acceptance, and all
+2. **No Windows host with ATAS.** Blocks install, GUI acceptance, and all
    TradingView parity evidence.
+
+RESOLVED: the ATAS repository did not exist and could not be created; the Owner
+created `spagheddieree/ATAS` and the project now lives there.
 
 None of these block further Core work.
 
@@ -110,10 +107,9 @@ None of these block further Core work.
 
 On a Windows machine with ATAS installed:
 
-1. Create/locate the `ATAS` repository in the current Projects workspace.
-2. Move `NQ-Volatility-Indicator/` into it.
-3. Add `src/NQVolatility.ATAS`, referencing the ATAS assemblies and
+1. Clone this repository; the project is already at `NQ-Volatility-Indicator/`.
+2. Add `src/NQVolatility.ATAS`, referencing the ATAS assemblies and
    `NQVolatility.Core`, implementing only the mapping table in
-   `src/NQVolatility.ATAS/README.md`.
-4. Build, install with ATAS closed, verify discovery and rendering.
-5. Work `docs/PARITY-TEST-MATRIX.md` §D against a TradingView chart.
+   `src/NQVolatility.ATAS/README.md`. Write no calculation logic there.
+3. Build, install with ATAS closed, verify discovery and rendering.
+4. Work `docs/PARITY-TEST-MATRIX.md` §D against a TradingView chart.
