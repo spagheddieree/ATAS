@@ -1,0 +1,5 @@
+# The vendored Pine source is the canonical parity reference and must stay
+# byte-identical to what TradingView exported (CRLF), so its documented
+# SHA-256 verifies on checkout. Do not let the repo-wide `* text=auto eol=lf`
+# rewrite it.
+*.pine -text

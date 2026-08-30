@@ -3,6 +3,8 @@
 **Status:** Phase 1 (behavioural parity). Authoritative.
 **Canonical source:** `pine/NQ-Volatility-Range.pine`
 **Source SHA-256:** `d15c58c6781ef1defd9f0fce913598a233e75f5ee3f585a759601e8700cc0525`
+(CRLF, exactly as supplied; `pine/.gitattributes` marks `*.pine` as `-text` so the
+checked-out file verifies against this hash rather than being normalised to LF)
 **Source length:** 977 lines (976 newline-terminated + final line)
 **Pine version:** v6, `overlay=true`, `max_boxes_count=500`, `max_lines_count=500`, `max_labels_count=500`
 
