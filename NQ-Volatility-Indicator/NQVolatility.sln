@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B4E25860-B82A-4F31-B54A-56B084A8A054}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NQVolatility.Core", "src\NQVolatility.Core\NQVolatility.Core.csproj", "{4A9E9B18-121B-4492-8708-F77B96DF5D10}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{94D6F411-FA5A-4854-85E0-F4BD61837671}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NQVolatility.Tests", "tests\NQVolatility.Tests\NQVolatility.Tests.csproj", "{634C71BC-D3AB-49B0-A931-01D0AA16F20B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4A9E9B18-121B-4492-8708-F77B96DF5D10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A9E9B18-121B-4492-8708-F77B96DF5D10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A9E9B18-121B-4492-8708-F77B96DF5D10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A9E9B18-121B-4492-8708-F77B96DF5D10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{634C71BC-D3AB-49B0-A931-01D0AA16F20B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{634C71BC-D3AB-49B0-A931-01D0AA16F20B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{634C71BC-D3AB-49B0-A931-01D0AA16F20B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{634C71BC-D3AB-49B0-A931-01D0AA16F20B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4A9E9B18-121B-4492-8708-F77B96DF5D10} = {B4E25860-B82A-4F31-B54A-56B084A8A054}
+		{634C71BC-D3AB-49B0-A931-01D0AA16F20B} = {94D6F411-FA5A-4854-85E0-F4BD61837671}
+	EndGlobalSection
+EndGlobal
