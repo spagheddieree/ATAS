@@ -1,10 +1,10 @@
-Captured 2026-09-12T02:37:25Z on Linux 6.18.44-fc-v24 x86_64
+Captured 2026-09-12T03:23:01Z on Linux 6.18.44-fc-v24 x86_64
 dotnet 8.0.131
-schema rev-2 (Crystal Ball interoperability hardening)
+schema rev-3 (measured ATAS API binding)
 
 $ dotnet build MarketDataRecorder.sln -c Release
-  NFMarketDataRecorder.Core -> /home/user/atas/Market-Data-Recorder/src/NFMarketDataRecorder.Core/bin/Release/netstandard2.0/NFMarketDataRecorder.Core.dll
   NFMarketDataRecorder.Harness -> /home/user/atas/Market-Data-Recorder/src/NFMarketDataRecorder.Harness/bin/Release/net8.0/nf-recorder.dll
+  NFMarketDataRecorder.ApiProbe -> /home/user/atas/Market-Data-Recorder/tools/NFMarketDataRecorder.ApiProbe/bin/Debug/net8.0/atas-api-probe.dll
   NFMarketDataRecorder.Tests -> /home/user/atas/Market-Data-Recorder/tests/NFMarketDataRecorder.Tests/bin/Release/net8.0/NFMarketDataRecorder.Tests.dll
   NFMarketDataRecorder.ATAS -> /home/user/atas/Market-Data-Recorder/src/NFMarketDataRecorder.ATAS/bin/Release/netstandard2.0/NFMarketDataRecorder.ATAS.dll
 
@@ -12,11 +12,4 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:03.39
-
-$ dotnet build tools/NFMarketDataRecorder.ApiProbe/NFMarketDataRecorder.ApiProbe.csproj -c Release
-Build succeeded.
-    0 Warning(s)
-    0 Error(s)
-
-Time Elapsed 00:00:03.11
+Time Elapsed 00:00:03.00

@@ -322,18 +322,62 @@ namespace NFMarketDataRecorder.Tests
         // ------------------------------------------------- field register
 
         [Fact]
-        public void Unverified_api_fields_are_declared_unknown_not_available()
+        public void Measured_present_fields_are_promoted()
         {
-            // The register must never claim a field the ATAS API has not been shown
-            // to provide, however much the dataset contract wants it.
+            // Promotion requires measurement. These were read off the real
+            // MarketDataArg, so they are AVAILABLE rather than UNKNOWN.
             var trade = Index(RecorderFieldRegister.TradeEvent());
 
-            Assert.Equal(Availability.Unknown, trade["source_sequence"].State);
-            Assert.Equal(Availability.Unknown, trade["exchange_trade_id"].State);
-            Assert.Equal(Availability.Unknown, trade["aggressor_side"].State);
+            Assert.Equal(Availability.AvailableDirectly, trade["price"].State);
+            Assert.Equal(Availability.AvailableDirectly, trade["volume"].State);
+            Assert.Equal(Availability.AvailableDirectly, trade["aggressor_side"].State);
+            Assert.Equal(Availability.AvailableDirectly, trade["origin_price"].State);
+            Assert.Equal(Availability.AvailableDirectly, trade["exchange_order_id"].State);
+        }
 
+        [Fact]
+        public void Source_sequence_is_measured_absent_and_never_taken_from_an_order_id()
+        {
+            // The single most dangerous available substitution. ExchangeOrderId is an
+            // ORDER identifier; using it as a sequence would fabricate feed ordering
+            // that was never observed.
+            var trade = Index(RecorderFieldRegister.TradeEvent());
+            var depth = Index(RecorderFieldRegister.DepthUpdate());
+
+            Assert.Equal(Availability.Unavailable, trade["source_sequence"].State);
+            Assert.Equal(Availability.Unavailable, depth["source_sequence"].State);
+            Assert.False(Availability.IsPresent(trade["source_sequence"].State));
+
+            // ...while the order id itself is legitimately available, and the evidence
+            // says explicitly that the two must not be conflated.
+            Assert.Equal(Availability.AvailableDirectly, trade["exchange_order_id"].State);
+            Assert.Contains("NOT a sequence", trade["exchange_order_id"].Evidence);
+        }
+
+        [Fact]
+        public void A_measured_property_does_not_make_its_semantics_verified()
+        {
+            // MarketDataArg.Time provably exists. What it MEANS at runtime -- exchange
+            // clock, replay clock or arrival clock -- metadata cannot say, and the
+            // whole dataset's timing validity rests on it.
+            var trade = Index(RecorderFieldRegister.TradeEvent());
+
+            Assert.Equal(Availability.Unknown, trade["source_timestamp"].State);
+            Assert.Contains("SEMANTICS", trade["source_timestamp"].Evidence);
+
+            // Likewise snapshot ladder ordering: rows are measured, order is not.
+            var snap = Index(RecorderFieldRegister.DepthSnapshot());
+            Assert.Equal(Availability.AvailableDirectly, snap["side"].State);
+            Assert.Equal(Availability.Unknown, snap["level"].State);
+            Assert.Contains("ORDERING", snap["level"].Evidence);
+        }
+
+        [Fact]
+        public void Absent_and_unknown_are_both_treated_as_not_present()
+        {
             Assert.False(Availability.IsPresent(Availability.Unknown));
             Assert.False(Availability.IsPresent(Availability.Unavailable));
+            Assert.True(Availability.IsPresent(Availability.AvailableDirectly));
         }
 
         [Fact]

@@ -65,14 +65,28 @@ namespace NFMarketDataRecorder.ApiProbe
 
                 Console.WriteLine();
                 var probe = new Probe(dir);
-                int rc = probe.Run();
+
+                int rc;
+                try
+                {
+                    rc = probe.Run();
+                }
+                catch (Exception ex)
+                {
+                    // Whatever the probe managed to produce is still worth having --
+                    // losing the entire report to one exception was the original
+                    // defect, and a partial report usually identifies the cause.
+                    rc = 3;
+                    Console.Error.WriteLine("probe failed partway: " + ex.GetType().Name + ": " + ex.Message);
+                }
 
                 File.WriteAllText(outPath, probe.Report);
 
                 Console.WriteLine("Report written: " + Path.GetFullPath(outPath));
                 Console.WriteLine();
-                Console.WriteLine(rc == 0
-                    ? "Send that file back to close out the API-binding work package."
+                Console.WriteLine(
+                    rc == 0 ? "Send that file back to close out the API-binding work package."
+                    : rc == 3 ? "PARTIAL report written -- send it anyway; it names what failed."
                     : "The probe could not read ATAS metadata from that directory -- see the report.");
                 return rc;
             }

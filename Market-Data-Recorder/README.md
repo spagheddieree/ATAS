@@ -33,7 +33,7 @@ been started.
 
 | Component | State | Evidence |
 |---|---|---|
-| `Core` — recorder, scheduler, queue, writer, comparer, provenance | **Done, tested** | 129/129 tests pass · `docs/evidence/` |
+| `Core` — recorder, scheduler, queue, writer, comparer, provenance | **Done, tested** | 145/145 tests pass · `docs/evidence/` |
 | `Harness` — synthetic feed + compare CLI | **Done, tested** | `docs/evidence/` |
 | `ATAS` — the indicator adapter | **Written, type-checked against an ASSUMED API** | `docs/ATAS-API-VERIFICATION.md` |
 | Real ATAS Replay experiment | **NOT RUN** — no GUI, no Windows, no ATAS available | `docs/GUI-REPLAY-RUNBOOK.md` |
@@ -105,7 +105,7 @@ be treated as faithful.
 ### Event shapes
 
 ```json
-{"kind":"header","schema_version":"rev-2","run_id":"...","source_class":"RAW_SOURCE","acquisition_mode":"REPLAY", ...}
+{"kind":"header","schema_version":"rev-3","run_id":"...","source_class":"RAW_SOURCE","acquisition_mode":"REPLAY", ...}
 {"recorder_seq":1,"kind":"trade","src_ts":"...","recv_ts":"...","price":20000.25,"volume":3,"aggressor":"buy"}
 {"recorder_seq":2,"kind":"depth","src_ts":"...","recv_ts":"...","side":"bid","price":20000,"volume":0}
 {"recorder_seq":3,"kind":"snapshot","src_ts":"...","recv_ts":"...","depth_limit":20,"bids":[[p,v],...],"asks":[[p,v],...]}

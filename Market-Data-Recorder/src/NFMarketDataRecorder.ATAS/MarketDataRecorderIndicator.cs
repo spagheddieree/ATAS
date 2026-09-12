@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 
+using ATAS.DataFeedsCore;
 using ATAS.Indicators;
 
 using NFMarketDataRecorder.Core;
@@ -43,6 +45,16 @@ namespace NFMarketDataRecorder.ATAS
     {
         private EventRecorder _recorder;
         private readonly object _lifecycleGate = new object();
+        private string _runDirectory;
+
+        // Callback-surface diagnostics. Not market data -- they measure how ATAS
+        // dispatches, which is a runtime question metadata cannot answer.
+        private long _singleTradeCallbacks;
+        private long _singleDepthCallbacks;
+        private long _batchTradeCallbacks;
+        private long _batchTradeItems;
+        private long _batchDepthCallbacks;
+        private long _batchDepthItems;
 
         // ------------------------------------------------------------- settings
 
@@ -110,7 +122,7 @@ namespace NFMarketDataRecorder.ATAS
                     // Captured verbatim. Canonical identity is derived from this and
                     // stored alongside it, never instead of it, so NQ and MNQ or an
                     // actual and a continuous contract can never be pooled by accident.
-                    RawInstrument = InstrumentInfoSafe(),
+                    RawInstrument = RawInstrumentSafe(),
 
                     AcquisitionMode = Core.AcquisitionMode.IsValid(AcquisitionMode)
                         ? AcquisitionMode
@@ -128,6 +140,7 @@ namespace NFMarketDataRecorder.ATAS
                     DrainTimeout = TimeSpan.FromSeconds(DrainTimeoutSeconds),
                 };
 
+                _runDirectory = runDir;
                 _recorder = new EventRecorder(options, this);
             }
         }
@@ -154,29 +167,121 @@ namespace NFMarketDataRecorder.ATAS
             var r = _recorder;
             _recorder = null;
             if (r != null) r.Complete();
+
+            WriteCallbackDiagnostics();
+        }
+
+        /// <summary>
+        /// Writes how ATAS actually dispatched, so the single-vs-batch question is
+        /// answered by measurement rather than assumption.
+        /// </summary>
+        private void WriteCallbackDiagnostics()
+        {
+            string dir = _runDirectory;
+            if (string.IsNullOrEmpty(dir)) return;
+
+            try
+            {
+                string json =
+                    "{\"single_trade_callbacks\":" + System.Threading.Interlocked.Read(ref _singleTradeCallbacks) +
+                    ",\"single_depth_callbacks\":" + System.Threading.Interlocked.Read(ref _singleDepthCallbacks) +
+                    ",\"batch_trade_callbacks\":" + System.Threading.Interlocked.Read(ref _batchTradeCallbacks) +
+                    ",\"batch_trade_items\":" + System.Threading.Interlocked.Read(ref _batchTradeItems) +
+                    ",\"batch_depth_callbacks\":" + System.Threading.Interlocked.Read(ref _batchDepthCallbacks) +
+                    ",\"batch_depth_items\":" + System.Threading.Interlocked.Read(ref _batchDepthItems) +
+                    ",\"note\":\"Capture binds the SINGLE callbacks only. If batch_*_items matches " +
+                    "single_*_callbacks, ATAS fans the same events out to both surfaces and binding both " +
+                    "would double-count. If batch items exceed singles, the batch surface carries events " +
+                    "the single surface does not, and the binding must be revisited.\"}\n";
+
+                File.WriteAllText(Path.Combine(dir, "atas-callback-diagnostics.json"), json);
+            }
+            catch (IOException)
+            {
+                // Diagnostics must never take the capture down.
+            }
         }
 
         // --------------------------------------------------------- market data
 
         /// <summary>One individual trade from the platform.</summary>
+        /// <remarks>
+        /// MEASURED signature. <c>Price</c> is recorded as the trade price;
+        /// <c>OriginPrice</c> is captured alongside it rather than substituted for
+        /// it, because the relationship between the two is not established by
+        /// metadata and picking the wrong one would silently corrupt every price in
+        /// the dataset.
+        /// </remarks>
         protected override void OnNewTrade(MarketDataArg trade)
         {
+            System.Threading.Interlocked.Increment(ref _singleTradeCallbacks);
+
             var r = _recorder;
             if (r == null || trade == null) return;
 
-            r.OnTrade(ToUtc(trade.Time), trade.Price, trade.Volume, MapAggressor(trade.Direction));
+            r.OnTrade(ToUtc(trade.Time), trade.Price, trade.Volume, MapAggressor(trade.Direction),
+                      trade.OriginPrice, trade.OpenInterest,
+                      trade.ExchangeOrderId, trade.AggressorExchangeOrderId);
         }
 
         /// <summary>One individual market-depth change from the platform.</summary>
         protected override void MarketDepthChanged(MarketDataArg depth)
         {
+            System.Threading.Interlocked.Increment(ref _singleDepthCallbacks);
+
             var r = _recorder;
             if (r == null || depth == null) return;
 
-            string side = MapSide(depth.DataType);
+            string side = SideOf(depth);
             if (side == null) return; // not a book-side update; nothing raw to record
 
-            r.OnDepthChange(ToUtc(depth.Time), side, depth.Price, depth.Volume);
+            r.OnDepthChange(ToUtc(depth.Time), side, depth.Price, depth.Volume, depth.ExchangeOrderId);
+        }
+
+        // ------------------------------------------- batch callbacks (diagnostic)
+
+        /// <summary>
+        /// Counts batch trade deliveries. <b>Records nothing.</b>
+        /// </summary>
+        /// <remarks>
+        /// <para>ATAS exposes both single (<c>OnNewTrade</c>) and batch
+        /// (<c>OnNewTrades</c>) surfaces. Metadata proves both exist; it says
+        /// nothing about whether both fire for the same underlying event. Capturing
+        /// from both would double-count every trade if they do, and capturing from
+        /// the batch surface alone would lose per-event granularity if they do
+        /// not.</para>
+        /// <para>So capture binds to the single surface only, and these overrides
+        /// exist purely to <em>measure</em> the relationship: they call base first
+        /// to preserve whatever dispatch ATAS performs, then increment a counter.
+        /// The counts are written to <c>atas-callback-diagnostics.json</c> at
+        /// shutdown, which is how the runtime experiment answers the question
+        /// instead of the adapter guessing at it.</para>
+        /// </remarks>
+        protected override void OnNewTrades(IEnumerable<MarketDataArg> trades)
+        {
+            base.OnNewTrades(trades);
+
+            System.Threading.Interlocked.Increment(ref _batchTradeCallbacks);
+            if (trades != null)
+            {
+                int n = 0;
+                foreach (var t in trades) { if (t != null) n++; }
+                System.Threading.Interlocked.Add(ref _batchTradeItems, n);
+            }
+        }
+
+        /// <summary>Counts batch depth deliveries. <b>Records nothing.</b> See <see cref="OnNewTrades"/>.</summary>
+        protected override void MarketDepthsChanged(IEnumerable<MarketDataArg> depths)
+        {
+            base.MarketDepthsChanged(depths);
+
+            System.Threading.Interlocked.Increment(ref _batchDepthCallbacks);
+            if (depths != null)
+            {
+                int n = 0;
+                foreach (var d in depths) { if (d != null) n++; }
+                System.Threading.Interlocked.Add(ref _batchDepthItems, n);
+            }
         }
 
         // ------------------------------------------------------------ DOM source
@@ -186,38 +291,59 @@ namespace NFMarketDataRecorder.ATAS
         /// source-time interval boundary.
         /// </summary>
         /// <remarks>
-        /// The book is read from the platform API rather than rebuilt from the
+        /// <para>The book is read from the platform API rather than rebuilt from the
         /// depth-change stream on purpose. A locally reconstructed book is a
         /// function of the changes we received, so it can never contradict them and
-        /// can never reveal a change that went missing. The platform's book can.
+        /// can never reveal a change that went missing. The platform's book can.</para>
+        /// <para>MEASURED: <c>GetMarketDepthSnapshot()</c> returns a <b>flat</b>
+        /// <c>IEnumerable&lt;MarketDataArg&gt;</c> — not separate ladders — so each
+        /// row's side is read from the row itself.</para>
         /// </remarks>
         public DomBook GetBook(int depthLimit)
         {
-            var bids = ReadSide(MarketDataType.Bid, depthLimit);
-            var asks = ReadSide(MarketDataType.Ask, depthLimit);
-            return new DomBook(bids, asks);
-        }
+            var provider = MarketDepthInfo;
+            if (provider == null) return DomBook.Empty;
 
-        private DomLevel[] ReadSide(MarketDataType side, int depthLimit)
-        {
-            var rows = MarketDepthInfo.GetMarketDepth(side);
-            if (rows == null) return new DomLevel[0];
+            var rows = provider.GetMarketDepthSnapshot();
+            if (rows == null) return DomBook.Empty;
 
-            int n = 0;
-            var buffer = new DomLevel[depthLimit > 0 ? depthLimit : 256];
+            var bids = new List<DomLevel>(depthLimit > 0 ? depthLimit : 64);
+            var asks = new List<DomLevel>(depthLimit > 0 ? depthLimit : 64);
 
             foreach (var row in rows)
             {
                 if (row == null) continue;
-                if (depthLimit > 0 && n >= depthLimit) break;
-                if (n == buffer.Length) Array.Resize(ref buffer, buffer.Length * 2);
-                buffer[n++] = new DomLevel(row.Price, row.Volume);
+
+                // Rows arrive in the platform's own order and are appended in that
+                // order. They are deliberately NOT sorted: sorting would impose an
+                // ordering the API has not been shown to have, and would destroy the
+                // evidence of what order the platform actually returned -- which is
+                // one of the things the runtime experiment has to determine.
+                var side = SideOf(row);
+                if (side == Side.Bid)
+                {
+                    if (depthLimit > 0 && bids.Count >= depthLimit) continue;
+                    bids.Add(new DomLevel(row.Price, row.Volume));
+                }
+                else if (side == Side.Ask)
+                {
+                    if (depthLimit > 0 && asks.Count >= depthLimit) continue;
+                    asks.Add(new DomLevel(row.Price, row.Volume));
+                }
             }
 
-            if (n == buffer.Length) return buffer;
-            var exact = new DomLevel[n];
-            Array.Copy(buffer, exact, n);
-            return exact;
+            return new DomBook(bids.ToArray(), asks.ToArray());
+        }
+
+        /// <summary>
+        /// Book side of a row, preferring the platform's own IsBid/IsAsk flags and
+        /// falling back to DataType. Returns null when the row is neither side.
+        /// </summary>
+        private static string SideOf(MarketDataArg row)
+        {
+            if (row.IsBid) return Side.Bid;
+            if (row.IsAsk) return Side.Ask;
+            return MapSide(row.DataType);
         }
 
         // ---------------------------------------------------------------- mapping
@@ -265,12 +391,28 @@ namespace NFMarketDataRecorder.ATAS
             }
         }
 
-        private string InstrumentInfoSafe()
+        /// <summary>
+        /// Builds the raw instrument identity from what the platform reports,
+        /// verbatim, in the <c>symbol@exchange</c> shape the recorder parses.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED: <c>IInstrumentInfo</c> exposes Instrument, Exchange, TickSize
+        /// and TimeZone. Only the first two identify the contract; nothing is
+        /// cased, trimmed or mapped, because canonical identity is derived from
+        /// this downstream and must never replace it.
+        /// </remarks>
+        private string RawInstrumentSafe()
         {
             try
             {
                 var info = InstrumentInfo;
-                return info == null ? "" : info.Instrument ?? "";
+                if (info == null) return "";
+
+                string symbol = info.Instrument ?? "";
+                string exchange = info.Exchange ?? "";
+
+                if (symbol.Length == 0) return "";
+                return exchange.Length > 0 ? symbol + "@" + exchange : symbol;
             }
             catch (Exception)
             {

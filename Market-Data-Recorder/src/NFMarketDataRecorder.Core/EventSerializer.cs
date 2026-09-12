@@ -25,13 +25,18 @@ namespace NFMarketDataRecorder.Core
                 case EventKind.Trade:
                     j.Num("price", e.Price)
                      .Num("volume", e.Volume)
-                     .Str("aggressor", e.AggressorSide ?? Aggressor.Unknown);
+                     .Str("aggressor", e.AggressorSide ?? Aggressor.Unknown)
+                     .NumIf("origin_price", e.OriginPrice)
+                     .NumIf("open_interest", e.OpenInterest)
+                     .NumIf("exchange_order_id", e.ExchangeOrderId)
+                     .NumIf("aggressor_exchange_order_id", e.AggressorExchangeOrderId);
                     break;
 
                 case EventKind.Depth:
                     j.Str("side", e.BookSide)
                      .Num("price", e.Price)
-                     .Num("volume", e.Volume);
+                     .Num("volume", e.Volume)
+                     .NumIf("exchange_order_id", e.ExchangeOrderId);
                     break;
 
                 case EventKind.Snapshot:
@@ -74,13 +79,18 @@ namespace NFMarketDataRecorder.Core
                 case EventKind.Trade:
                     j.Num("price", e.Price)
                      .Num("volume", e.Volume)
-                     .Str("aggressor", e.AggressorSide ?? Aggressor.Unknown);
+                     .Str("aggressor", e.AggressorSide ?? Aggressor.Unknown)
+                     .NumIf("origin_price", e.OriginPrice)
+                     .NumIf("open_interest", e.OpenInterest)
+                     .NumIf("exchange_order_id", e.ExchangeOrderId)
+                     .NumIf("aggressor_exchange_order_id", e.AggressorExchangeOrderId);
                     break;
 
                 case EventKind.Depth:
                     j.Str("side", e.BookSide)
                      .Num("price", e.Price)
-                     .Num("volume", e.Volume);
+                     .Num("volume", e.Volume)
+                     .NumIf("exchange_order_id", e.ExchangeOrderId);
                     break;
 
                 case EventKind.Snapshot:

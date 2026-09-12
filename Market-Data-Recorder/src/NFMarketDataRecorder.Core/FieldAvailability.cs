@@ -82,23 +82,40 @@ namespace NFMarketDataRecorder.Core
     /// assembled from partitions of differing richness needs each partition to state
     /// what it actually contains, so a consumer can decide whether a partition can
     /// answer a given question instead of discovering a silent null mid-analysis.</para>
-    /// <para>Every classification below is pinned to the evidence in
-    /// <c>docs/ATAS-API-VERIFICATION.md</c>. Where the ATAS API surface is still
-    /// unverified the field is <see cref="Availability.Unknown"/> — <b>not</b>
-    /// available — and it stays that way until the API probe is run against a real
-    /// installation. Promoting a field here without that evidence would be the exact
-    /// failure this register exists to prevent.</para>
+    /// <para>Every classification is pinned to evidence. Most are now MEASURED
+    /// against the real ATAS assemblies (<c>docs/evidence/atas-api-report.md</c>,
+    /// SHA-256 verified), which promoted price, volume, direction, book side and the
+    /// exchange order ids, and demoted <c>source_sequence</c> and
+    /// <c>exchange_trade_id</c> from unknown to <b>measured absent</b>.</para>
+    /// <para>What metadata cannot settle stays <see cref="Availability.Unknown"/>:
+    /// a property provably existing is not the same as its runtime meaning being
+    /// known. <c>MarketDataArg.Time</c> is measured present, yet whether it carries
+    /// exchange, replay or arrival time is unresolved and decides whether any timing
+    /// analysis on this dataset is valid at all. Snapshot row ordering is the same
+    /// shape of question. Both are for the GUI Replay experiment, not for
+    /// assumption.</para>
     /// </remarks>
     public static class RecorderFieldRegister
     {
-        private const string ProbePending =
-            "ATAS API unverified: no SDK reachable; run tools/NFMarketDataRecorder.ApiProbe (docs/ATAS-API-VERIFICATION.md)";
-
         private const string RecorderOwned =
             "produced by the recorder itself, independent of the ATAS API";
 
-        private const string AssumedArgField =
-            "assumed present on the ATAS market-data event; UNVERIFIED until the API probe runs";
+        /// <summary>Measured on the real assemblies; see docs/evidence/atas-api-report.md.</summary>
+        private const string MeasuredArg =
+            "MEASURED on ATAS.Indicators.MarketDataArg (api-report section 2), SHA-256 verified assemblies";
+
+        /// <summary>
+        /// The distinction this register exists to keep: a CLR property provably
+        /// exists, but what its value MEANS at runtime is a different question that
+        /// metadata cannot answer.
+        /// </summary>
+        private const string MeasuredSemanticsUnknown =
+            "PROPERTY MEASURED on MarketDataArg, but its RUNTIME SEMANTICS are unverified; " +
+            "metadata cannot establish meaning. Resolve via the GUI Replay experiment";
+
+        private const string MeasuredAbsent =
+            "MEASURED ABSENT: no such member on MarketDataArg or the indicator depth API in the " +
+            "full 2,122-line metadata report";
 
         /// <summary>Classification for the raw trade contract.</summary>
         public static List<FieldClassification> TradeEvent()
@@ -114,16 +131,25 @@ namespace NFMarketDataRecorder.Core
                 new FieldClassification("raw_instrument",        Availability.AvailableDirectly, "captured verbatim from operator/platform declaration"),
                 new FieldClassification("canonical_instrument",  Availability.DerivableWithoutLoss, "derived from raw identity; raw retained alongside"),
 
-                new FieldClassification("source_timestamp",      Availability.Unknown, AssumedArgField + "; whether it is the feed clock or arrival clock is the single highest-risk open question"),
-                new FieldClassification("price",                 Availability.Unknown, AssumedArgField),
-                new FieldClassification("volume",                Availability.Unknown, AssumedArgField),
-                new FieldClassification("aggressor_side",        Availability.Unknown, AssumedArgField + "; never inferred from price"),
+                new FieldClassification("price",                 Availability.AvailableDirectly, MeasuredArg + ": Decimal Price"),
+                new FieldClassification("volume",                Availability.AvailableDirectly, MeasuredArg + ": Decimal Volume"),
+                new FieldClassification("aggressor_side",        Availability.AvailableDirectly, MeasuredArg + ": TradeDirection Direction {Between=0,Buy=1,Sell=2}; mapped directly, never inferred from price"),
+                new FieldClassification("origin_price",          Availability.AvailableDirectly, MeasuredArg + ": Decimal OriginPrice; captured alongside Price, NOT substituted for it -- their relationship is unverified"),
+                new FieldClassification("open_interest",         Availability.AvailableDirectly, MeasuredArg + ": Decimal OpenInterest"),
+                new FieldClassification("exchange_order_id",     Availability.AvailableDirectly, MeasuredArg + ": Nullable<Int64> ExchangeOrderId -- an ORDER identifier, NOT a sequence"),
+                new FieldClassification("aggressor_exchange_order_id", Availability.AvailableDirectly, MeasuredArg + ": Nullable<Int64> AggressorExchangeOrderId"),
 
-                new FieldClassification("event_timestamp",       Availability.Unknown, "distinct normalized event time; indistinguishable from source_timestamp until the source clock is verified"),
-                new FieldClassification("source_sequence",       Availability.Unknown, ProbePending + "; no exchange sequence is assumed to exist"),
-                new FieldClassification("exchange_trade_id",     Availability.Unknown, ProbePending),
-                new FieldClassification("exchange_order_id",     Availability.Unknown, ProbePending),
-                new FieldClassification("provider_feed",         Availability.Unknown, ProbePending),
+                // The property exists and is captured; what the value MEANS does not.
+                new FieldClassification("source_timestamp",      Availability.Unknown, MeasuredSemanticsUnknown +
+                    ". DateTime Time is measured present, but whether it carries exchange time, replay time, platform-normalized time or arrival time is THE highest-risk open question -- if it is an arrival clock, no timing analysis on this dataset is valid"),
+
+                new FieldClassification("event_timestamp",       Availability.Unknown, "a normalized event time distinct from source_timestamp; not introduced while it would merely duplicate it"),
+
+                // Measured absent, not merely unverified.
+                new FieldClassification("source_sequence",       Availability.Unavailable, MeasuredAbsent +
+                    ". The only Sequence property in the whole report belongs to OFT.Phemex.WsMessages.Pushes.WsDepthPush, a crypto websocket message type unreachable from the indicator API. ExchangeOrderId is an order id and must NEVER be mapped here"),
+                new FieldClassification("exchange_trade_id",     Availability.Unavailable, MeasuredAbsent + ". No trade-id member exists on MarketDataArg"),
+                new FieldClassification("provider_feed",         Availability.Unknown, "not exposed on MarketDataArg; whether a connector/provider identity is reachable from an indicator is unverified"),
             };
         }
 
@@ -141,15 +167,18 @@ namespace NFMarketDataRecorder.Core
                 new FieldClassification("raw_instrument",        Availability.AvailableDirectly, "captured verbatim"),
                 new FieldClassification("canonical_instrument",  Availability.DerivableWithoutLoss, "derived; raw retained"),
 
-                new FieldClassification("source_timestamp",      Availability.Unknown, AssumedArgField),
-                new FieldClassification("side",                  Availability.Unknown, AssumedArgField),
-                new FieldClassification("price",                 Availability.Unknown, AssumedArgField),
-                new FieldClassification("volume",                Availability.Unknown, AssumedArgField),
+                new FieldClassification("side",                  Availability.AvailableDirectly, MeasuredArg + ": Boolean IsBid / Boolean IsAsk, with MarketDataType DataType {Bid=0,Ask=1,Trade=2} as fallback"),
+                new FieldClassification("price",                 Availability.AvailableDirectly, MeasuredArg + ": Decimal Price"),
+                new FieldClassification("volume",                Availability.AvailableDirectly, MeasuredArg + ": Decimal Volume"),
+                new FieldClassification("exchange_order_id",     Availability.AvailableDirectly, MeasuredArg + ": Nullable<Int64> ExchangeOrderId"),
 
-                new FieldClassification("level",                 Availability.Unknown, ProbePending),
-                new FieldClassification("update_type",           Availability.Unknown, ProbePending + "; whether depth arrives as incremental changes or whole-book refreshes is a primary open finding"),
-                new FieldClassification("source_sequence",       Availability.Unknown, ProbePending),
-                new FieldClassification("provider_feed",         Availability.Unknown, ProbePending),
+                new FieldClassification("source_timestamp",      Availability.Unknown, MeasuredSemanticsUnknown + ". DateTime Time measured present; meaning unverified"),
+
+                new FieldClassification("level",                 Availability.Unavailable, MeasuredAbsent + ". MarketDataArg carries no ladder index"),
+                new FieldClassification("update_type",           Availability.Unknown,
+                    "no add/change/delete discriminator on MarketDataArg. Removal is presumed to arrive as volume 0, which is UNVERIFIED. Whether depth arrives incrementally at all, and whether MarketDepthChanged and MarketDepthsChanged both fire for one event, are runtime questions the GUI experiment must answer -- the adapter therefore binds the SINGLE callback only and merely counts the batch one"),
+                new FieldClassification("source_sequence",       Availability.Unavailable, MeasuredAbsent),
+                new FieldClassification("provider_feed",         Availability.Unknown, "not exposed on MarketDataArg"),
             };
         }
 
@@ -170,11 +199,13 @@ namespace NFMarketDataRecorder.Core
                 new FieldClassification("canonical_instrument",  Availability.DerivableWithoutLoss, "derived; raw retained"),
                 new FieldClassification("depth_limit",           Availability.AvailableDirectly, "recorder configuration"),
 
-                new FieldClassification("side",                  Availability.Unknown, AssumedArgField),
-                new FieldClassification("level",                 Availability.Unknown, "ladder ORDERING returned by the depth API is unverified; index meaning cannot be asserted until then"),
-                new FieldClassification("price",                 Availability.Unknown, AssumedArgField),
-                new FieldClassification("volume",                Availability.Unknown, AssumedArgField),
-                new FieldClassification("provider_feed",         Availability.Unknown, ProbePending),
+                new FieldClassification("side",                  Availability.AvailableDirectly, "MEASURED: IMarketDepthInfoProvider.GetMarketDepthSnapshot() returns a FLAT IEnumerable<MarketDataArg>; each row carries IsBid/IsAsk"),
+                new FieldClassification("price",                 Availability.AvailableDirectly, MeasuredArg + ": Decimal Price on each snapshot row"),
+                new FieldClassification("volume",                Availability.AvailableDirectly, MeasuredArg + ": Decimal Volume on each snapshot row"),
+
+                new FieldClassification("level",                 Availability.Unknown,
+                    "ROW ORDERING of GetMarketDepthSnapshot() is not expressed in metadata. Best-first, bids-descending and asks-ascending are all UNVERIFIED, so a positional level index cannot be asserted. Rows are recorded in the platform's own order and never sorted; depth truncation is therefore unsafe until ordering is established"),
+                new FieldClassification("provider_feed",         Availability.Unknown, "not exposed on MarketDataArg"),
             };
         }
 

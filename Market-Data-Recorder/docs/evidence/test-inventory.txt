@@ -1,6 +1,18 @@
-Captured 2026-09-12T02:38:07Z
+Captured 2026-09-12T03:23:40Z
 
-$ dotnet test --list-tests
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.A_malformed_core_runtime_path_yields_null_rather_than_throwing
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.A_missing_windows_desktop_root_yields_null_rather_than_throwing
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.A_prerelease_version_directory_does_not_break_selection
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.An_empty_or_absent_desktop_root_yields_null
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.Missing_wpf_assemblies_are_reported_rather_than_thrown
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.No_duplicate_assembly_names_reach_the_resolver
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_atas_directory_wins_over_a_framework_assembly_of_the_same_name
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_core_runtime_directory_is_discovered_and_real
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_desktop_version_matching_the_running_major_is_preferred
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_highest_version_is_used_when_no_major_matches
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_resolver_set_includes_the_atas_directory_and_the_core_runtime
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_windows_desktop_root_is_derived_as_a_sibling_of_the_core_runtime
+    NFMarketDataRecorder.Tests.ApiProbeResolverTests.The_wpf_assemblies_that_caused_the_failure_are_the_ones_checked_for
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_changed_value_is_reported_at_its_exact_index
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_dropped_event_is_reported_as_divergent
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_duplicated_event_breaks_the_bucket_test
@@ -54,9 +66,11 @@ $ dotnet test --list-tests
     NFMarketDataRecorder.Tests.ProvenanceContractTests.A_declared_replay_mode_is_carried_into_header_and_manifest
     NFMarketDataRecorder.Tests.ProvenanceContractTests.A_header_requires_run_identity
     NFMarketDataRecorder.Tests.ProvenanceContractTests.A_lossless_anomaly_degrades_but_does_not_corrupt
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_measured_property_does_not_make_its_semantics_verified
     NFMarketDataRecorder.Tests.ProvenanceContractTests.A_normalized_source_may_not_emit_event_level_observations
     NFMarketDataRecorder.Tests.ProvenanceContractTests.A_raw_source_may_emit_every_event_kind
     NFMarketDataRecorder.Tests.ProvenanceContractTests.A_run_cannot_stay_clean_after_a_defect_even_if_it_ends_quietly
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Absent_and_unknown_are_both_treated_as_not_present
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Acquisition_mode_defaults_to_unknown_never_to_live
     NFMarketDataRecorder.Tests.ProvenanceContractTests.All_three_contracts_are_registered
     NFMarketDataRecorder.Tests.ProvenanceContractTests.An_explicit_run_id_is_honoured
@@ -73,9 +87,11 @@ $ dotnet test --list-tests
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Every_run_gets_a_run_id_even_when_none_was_supplied
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Integrity_state_only_ever_worsens
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Lost_events_corrupt_the_run
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Measured_present_fields_are_promoted
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Recorder_owned_fields_are_available_directly
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Replay_mode_is_not_inferrable_from_the_data
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Run_label_is_not_run_identity
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Source_sequence_is_measured_absent_and_never_taken_from_an_order_id
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Source_time_is_not_claimed_verified_while_the_api_is_unverified
     NFMarketDataRecorder.Tests.ProvenanceContractTests.The_header_is_excluded_from_canonical_comparison
     NFMarketDataRecorder.Tests.ProvenanceContractTests.The_header_is_the_first_line_of_the_capture
@@ -83,7 +99,6 @@ $ dotnet test --list-tests
     NFMarketDataRecorder.Tests.ProvenanceContractTests.The_recorder_always_declares_itself_a_raw_source
     NFMarketDataRecorder.Tests.ProvenanceContractTests.The_register_is_written_beside_every_capture
     NFMarketDataRecorder.Tests.ProvenanceContractTests.Two_runs_get_different_run_ids
-    NFMarketDataRecorder.Tests.ProvenanceContractTests.Unverified_api_fields_are_declared_unknown_not_available
     NFMarketDataRecorder.Tests.SequencingTests.A_snapshot_is_written_before_the_event_that_crossed_its_boundary
     NFMarketDataRecorder.Tests.SequencingTests.Concurrent_producers_lose_nothing_and_produce_unique_sequence_numbers
     NFMarketDataRecorder.Tests.SequencingTests.Counters_separate_trades_depth_changes_and_snapshots

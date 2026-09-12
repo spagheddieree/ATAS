@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -57,15 +58,37 @@ namespace NFMarketDataRecorder.ApiProbe
             }
 
             // MetadataLoadContext needs the core library plus everything referenced.
-            // Bundling the running runtime's assemblies alongside the ATAS ones lets
-            // .NET Framework metadata resolve against .NET 8 reference assemblies,
-            // which is enough for signature inspection.
-            var resolverPaths = new List<string>(dlls);
-            resolverPaths.AddRange(Directory.GetFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll"));
+            // ATAS assemblies reference WPF types, so the WindowsDesktop shared
+            // framework must be in the resolver as well -- its absence was the
+            // defect that made this probe throw before writing anything.
+            List<string> missingWpf;
+            string desktopDir;
+            var resolverPaths = ResolverPaths.Build(_dir, out missingWpf, out desktopDir);
+
+            H2("0 · Resolver");
+            Line("- core runtime: `" + ResolverPaths.CoreRuntimeDirectory() + "`");
+            Line("- WindowsDesktop framework: " +
+                 (desktopDir == null ? "**not found**" : "`" + desktopDir + "`"));
+            Line("- assemblies in resolver: " + resolverPaths.Count.ToString(CultureInfo.InvariantCulture));
+
+            if (missingWpf.Count > 0)
+            {
+                Line("- **missing WPF assemblies: " + string.Join(", ", missingWpf) + "**");
+                Blank();
+                Line("ATAS assemblies reference these types. Metadata resolution may fail and");
+                Line("this report may be partial. Install the .NET Desktop Runtime matching the");
+                Line("SDK used to run the probe, or run the probe on the machine where ATAS is");
+                Line("installed. **Do not copy framework DLLs into the ATAS directory.**");
+            }
+            else
+            {
+                Line("- WPF assemblies: all present");
+            }
+            Blank();
 
             _ctx = new MetadataLoadContext(new PathAssemblyResolver(resolverPaths));
 
-            H2("0 · Assemblies loaded");
+            H2("0.1 · Assemblies loaded");
             foreach (var path in dlls.OrderBy(p => p))
             {
                 string name = Path.GetFileName(path);
@@ -93,18 +116,44 @@ namespace NFMarketDataRecorder.ApiProbe
                 return 2;
             }
 
-            ReportIndicatorBase();
-            ReportMarketDataArg();
-            ReportEnums();
-            ReportDepthApi();
-            ReportInstrument();
-            ReportAttributes();
-            ReportSweep();
+            // Each section is isolated. The original failure mode was one exception
+            // discarding the entire report; a section that cannot be produced now
+            // says so in place and the rest of the report still reaches the user.
+            Section("1 . Indicator base type and lifecycle", ReportIndicatorBase);
+            Section("2 . Market data event payload", ReportMarketDataArg);
+            Section("3 . Enums", ReportEnums);
+            Section("4 . Depth snapshot API", ReportDepthApi);
+            Section("5 . Instrument metadata", ReportInstrument);
+            Section("6 . Configuration / UI attributes", ReportAttributes);
+            Section("7 . Keyword sweep", ReportSweep);
 
             H2("Next step");
             Line("Send this file back. Each section maps onto a numbered row in");
             Line("`docs/ATAS-API-VERIFICATION.md` §3, and the adapter is corrected against it.");
             return 0;
+        }
+
+        /// <summary>
+        /// Runs one report section, converting a failure into a recorded note
+        /// rather than losing the whole report.
+        /// </summary>
+        private void Section(string name, Action body)
+        {
+            try
+            {
+                body();
+            }
+            catch (Exception ex)
+            {
+                H2(name + " -- FAILED");
+                Line("This section could not be produced:");
+                Blank();
+                Line("```");
+                _md.AppendLine(ex.GetType().FullName + ": " + ex.Message);
+                Line("```");
+                Line("The remaining sections are unaffected and appear below.");
+                Blank();
+            }
         }
 
         // ------------------------------------------------------------------ 1

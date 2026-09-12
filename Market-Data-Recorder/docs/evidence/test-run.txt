@@ -1,4 +1,4 @@
-Captured 2026-09-12T02:37:32Z
+Captured 2026-09-12T03:23:04Z
 
 $ dotnet test MarketDataRecorder.sln -c Release
 Copyright (c) Microsoft Corporation.  All rights reserved.
@@ -6,4 +6,4 @@ Copyright (c) Microsoft Corporation.  All rights reserved.
 Starting test execution, please wait...
 A total of 1 test files matched the specified pattern.
 
-Passed!  - Failed:     0, Passed:   129, Skipped:     0, Total:   129, Duration: 30 s - NFMarketDataRecorder.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:   145, Skipped:     0, Total:   145, Duration: 30 s - NFMarketDataRecorder.Tests.dll (net8.0)

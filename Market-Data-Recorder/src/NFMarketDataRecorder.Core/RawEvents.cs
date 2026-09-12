@@ -52,6 +52,27 @@ namespace NFMarketDataRecorder.Core
         /// <summary>Depth only: one of <see cref="Side"/>.</summary>
         public string BookSide;
 
+        // --- additional raw fields the platform actually carries -------------
+        //
+        // Measured on the real MarketDataArg. They are optional because their
+        // presence is per-event, and a null is written as an ABSENT key rather
+        // than a null value: the file then states what arrived, and never implies
+        // a zero the feed did not send.
+
+        /// <summary>Platform's OriginPrice. Semantics relative to Price are UNVERIFIED.</summary>
+        public decimal? OriginPrice;
+
+        /// <summary>Platform's OpenInterest as carried on the event.</summary>
+        public decimal? OpenInterest;
+
+        /// <summary>
+        /// Exchange ORDER identifier. Not a sequence number and never used for ordering.
+        /// </summary>
+        public long? ExchangeOrderId;
+
+        /// <summary>Exchange order identifier of the aggressing side, where supplied.</summary>
+        public long? AggressorExchangeOrderId;
+
         // --- snapshot payload ------------------------------------------------------
         /// <summary>Snapshot only: bid levels, best first, as returned by the platform API.</summary>
         public DomLevel[] Bids;
@@ -77,6 +98,28 @@ namespace NFMarketDataRecorder.Core
             };
         }
 
+        /// <summary>
+        /// A trade carrying the optional raw fields the platform supplied.
+        /// </summary>
+        /// <remarks>
+        /// Each optional argument is written only when it has a value. A field the
+        /// platform did not supply is absent from the line rather than written as
+        /// zero or null, so the capture distinguishes "not sent" from "sent as
+        /// zero" -- a distinction that cannot be recovered later.
+        /// </remarks>
+        public static RawEvent Trade(long seq, DateTime sourceUtc, DateTime receivedUtc,
+                                     decimal price, decimal volume, string aggressor,
+                                     decimal? originPrice, decimal? openInterest,
+                                     long? exchangeOrderId, long? aggressorExchangeOrderId)
+        {
+            var e = Trade(seq, sourceUtc, receivedUtc, price, volume, aggressor);
+            e.OriginPrice = originPrice;
+            e.OpenInterest = openInterest;
+            e.ExchangeOrderId = exchangeOrderId;
+            e.AggressorExchangeOrderId = aggressorExchangeOrderId;
+            return e;
+        }
+
         public static RawEvent Depth(long seq, DateTime sourceUtc, DateTime receivedUtc,
                                      string side, decimal price, decimal volume)
         {
@@ -90,6 +133,16 @@ namespace NFMarketDataRecorder.Core
                 Price = price,
                 Volume = volume,
             };
+        }
+
+        /// <summary>A depth change carrying the optional raw fields the platform supplied.</summary>
+        public static RawEvent Depth(long seq, DateTime sourceUtc, DateTime receivedUtc,
+                                     string side, decimal price, decimal volume,
+                                     long? exchangeOrderId)
+        {
+            var e = Depth(seq, sourceUtc, receivedUtc, side, price, volume);
+            e.ExchangeOrderId = exchangeOrderId;
+            return e;
         }
 
         public static RawEvent Snapshot(long seq, DateTime sourceUtc, DateTime receivedUtc,

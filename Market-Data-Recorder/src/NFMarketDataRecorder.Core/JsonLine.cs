@@ -59,6 +59,20 @@ namespace NFMarketDataRecorder.Core
             return this;
         }
 
+        /// <summary>Writes the key only when the value is present. Absent means "not supplied".</summary>
+        public JsonLine NumIf(string name, decimal? value)
+        {
+            if (value.HasValue) Num(name, value.Value);
+            return this;
+        }
+
+        /// <summary>Writes the key only when the value is present. Absent means "not supplied".</summary>
+        public JsonLine NumIf(string name, long? value)
+        {
+            if (value.HasValue) Num(name, value.Value);
+            return this;
+        }
+
         public JsonLine Bool(string name, bool value)
         {
             Key(name);

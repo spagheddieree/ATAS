@@ -3,7 +3,9 @@
 ## This procedure was NOT executed
 
 **No GUI access, no Windows host, no ATAS installation was available in the environment
-this tool was built in.** The container is headless Linux; ATAS is a Windows desktop
+this tool was built in.** The ATAS *API* is now measured from the real assemblies, so
+the adapter is bound to verified signatures — but every question below is about
+RUNTIME BEHAVIOUR, which metadata cannot answer at all. The container is headless Linux; ATAS is a Windows desktop
 application whose Replay mode is driven entirely through its interface. Nothing in this
 document has been run, and no claim is made about what ATAS Replay actually does.
 
@@ -38,9 +40,18 @@ comparison.
 |---|---|
 | Output directory | `%USERPROFILE%\Documents\NFMarketDataRecorder` |
 | Snapshot interval (ms, source time) | `1000` |
-| Snapshot depth (levels per side) | `20` |
+| Snapshot depth (levels per side) | **`0`** (record the full ladder) |
+| **Acquisition mode** | **`REPLAY`** — must be set by hand |
 | Queue capacity (events) | `262144` |
 | Drain timeout (s) | `30` |
+
+> Depth limit is **0** deliberately. Snapshot row ordering is measured to be
+> unspecified, so truncating to "top N" would assume best-first ordering and could
+> silently discard the most important levels. Set a limit only once section 9
+> establishes the ordering.
+>
+> Acquisition mode is never inferred. An unset run records `UNKNOWN`, which is honest
+> but makes the capture much less useful.
 
 Only **Run label** differs: `1x` for the first run, `accel` for the second.
 
@@ -141,3 +152,99 @@ experiment gets run wrong:
 Only once all three are excluded is DIVERGENT a finding about ATAS. Then re-run at a
 third speed: if 1x and 2x agree but 10x diverges, there is a speed threshold worth
 locating, and that is a much more actionable result than a binary pass/fail.
+
+---
+
+## 9 · The five runtime questions
+
+Metadata settled the API. Only running ATAS can settle these, and each one changes
+what the dataset may be used for.
+
+### A · Trade fidelity — is `OnNewTrade` once per historical trade?
+
+After a run, from the capture directory:
+
+```powershell
+(Select-String -Path events.jsonl -Pattern '"kind":"trade"').Count
+```
+
+Compare against ATAS's own tape for the same interval. Equal counts mean per-print
+delivery. Fewer means Replay is aggregating, **which would end the investigation**:
+individual historical trades would not be obtainable through this API, and that is the
+answer to the original question rather than a defect to work around.
+
+Also spot-check price, volume, direction and — where present — `exchange_order_id`
+against the platform's own display.
+
+### B · Depth fidelity — is `MarketDepthChanged` per individual L2 change?
+
+Check that depth records carry single price levels rather than whole books, and
+specifically look for **removals**: the recorder writes `"volume":0` when the platform
+reports zero. Confirm that a level disappearing from the DOM produces such a record.
+If removals never appear, the change stream cannot reconstruct a book and snapshots
+become the only usable depth evidence.
+
+Then the strongest available check: replay the depth stream into your own book and
+diff it against the recorded snapshots at the same source instants. Disagreement means
+changes went missing — exactly what the independent snapshot exists to expose.
+
+### C · Timestamp semantics — what *is* `MarketDataArg.Time`?
+
+**The highest-stakes question in the project.** The property is measured; its meaning
+is not. Determine which it is:
+
+| If `src_ts` is… | Consequence |
+|---|---|
+| exchange / feed event time | ideal — full timing analysis valid |
+| Replay's synthetic clock | usable for ordering, not for real-world latency |
+| platform-normalized time | usable, but the normalization must be characterised |
+| **arrival / local time** | **no timing analysis on this dataset is valid** |
+
+How to tell: replay a session whose real print times can be checked independently and
+compare `src_ts` against them. Then re-run the same interval at a different speed — if
+`src_ts` values shift with replay speed, it is not a source clock.
+
+Until this is settled, `source_timestamp` stays `UNKNOWN` in the field register and
+**`recv_ts − src_ts` must not be called latency**.
+
+### D · Callback order and the single/batch relationship
+
+Read `atas-callback-diagnostics.json`:
+
+| Observation | Meaning |
+|---|---|
+| `batch_trade_items` ≈ `single_trade_callbacks` | ATAS fans the same events to both surfaces. Binding both would **double-count**; the current single-only binding is correct. |
+| `batch_trade_items` > `single_trade_callbacks` | The batch surface carries events the single one does not. The binding must be revisited — events are being missed. |
+| `batch_trade_callbacks` = 0 | Only the single surface fires. Current binding is correct and complete. |
+
+Also check whether `recorder_seq` order matches `src_ts` order. If the capture records
+source-time regressions (`faults.jsonl` will say so), ATAS is dispatching on multiple
+threads and intra-timestamp ordering is not stable — which the comparer already
+reports separately as `COMPLETE_BUT_UNORDERED`.
+
+### E · Speed invariance
+
+The original question. Same ten minutes of source time at 1x, then 60x, then maximum:
+
+```powershell
+dotnet run -c Release --project src\NFMarketDataRecorder.Harness -- compare --a <run-1x-dir> --b <run-accel-dir>
+```
+
+`IDENTICAL` · `COMPLETE_BUT_UNORDERED` · `DIVERGENT` — read per section 6 above.
+
+Before concluding anything from `DIVERGENT`, rule out the three ways this experiment
+gets run wrong (section 8): different source spans, queue overflow in the fast run,
+and non-identical settings.
+
+---
+
+## 10 · What to send back
+
+- both `manifest.json` files
+- both `field-register.jsonl` files
+- `atas-callback-diagnostics.json` from each run
+- the `compare` output
+- the first ~50 lines of one `events.jsonl`
+- any `faults.jsonl` that is non-empty
+
+That is enough to settle A–E and to decide Recorder v0.1 acceptance.

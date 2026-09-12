@@ -7,7 +7,7 @@ namespace NFMarketDataRecorder.Core
     /// </summary>
     public static class SchemaVersion
     {
-        public const string Current = "rev-2";
+        public const string Current = "rev-3";
 
         /// <summary>
         /// Build identity of the recorder that produced a capture. Recorded so a

@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/NFMarketDataRecorder.Core/NFMarketDataRecorder.Core.csproj" />
     <ProjectReference Include="../../src/NFMarketDataRecorder.Harness/NFMarketDataRecorder.Harness.csproj" />
+    <ProjectReference Include="../../tools/NFMarketDataRecorder.ApiProbe/NFMarketDataRecorder.ApiProbe.csproj" />
   </ItemGroup>
 
 </Project>

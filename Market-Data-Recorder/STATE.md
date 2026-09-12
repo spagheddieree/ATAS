@@ -31,15 +31,17 @@ experiment finds.
 | Integrity fault detection (overflow, write failure, and six more) | **Done** |
 | Graceful shutdown and flushing | **Done** |
 | File outputs + manifest, no database | **Done** |
-| Automated tests | **Done** — 129/129 |
+| Automated tests | **Done** — 145/145 |
 | Provenance hardening: RAW vs NORMALIZED source, run id, acquisition mode, instrument identity, integrity state, field register (schema `rev-2`) | **Done** |
 | Dataset v0.1 acquisition contract + normalized-import seam spec | **Done (design only)** |
 | Crystal Ball Historical Import Adapter | **NOT implemented, by instruction** |
 | 10-minute replay, 1x vs accelerated, compared and documented | **Done against a synthetic feed** — see caveat below |
 | The ATAS indicator adapter | **Written, type-checked against an ASSUMED API** |
-| Real ATAS API binding verification | **BLOCKED — no ATAS assemblies reachable** (B-2) |
+| Real ATAS API binding verification | **DONE — measured from real assemblies** (B-2 CLOSED) |
 | `atas-api-probe` — reflection tool to close B-2 in one command | **Done, fixture-tested** |
-| Real ATAS build against actual assemblies | **NOT DONE — requires B-2** |
+| Adapter bound to measured signatures (schema `rev-3`) | **Done** |
+| Probe WindowsDesktop resolver defect | **Repaired + tested** |
+| Real ATAS build against actual assemblies | **NOT DONE — needs the Windows machine** |
 | The real ATAS Replay experiment | **NOT RUN — blocked, no GUI** (B-1) |
 
 ## 2 · Blockers

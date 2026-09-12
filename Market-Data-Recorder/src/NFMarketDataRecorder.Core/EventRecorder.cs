@@ -154,6 +154,22 @@ namespace NFMarketDataRecorder.Core
             Submit(RawEvent.Trade(NextSeq(), sourceUtc, DateTime.UtcNow, price, volume, aggressor));
         }
 
+        /// <summary>
+        /// Records one individual trade, including the optional raw fields the
+        /// platform supplied. An absent optional is written as an absent key, never
+        /// as zero.
+        /// </summary>
+        public void OnTrade(DateTime sourceUtc, decimal price, decimal volume, string aggressor,
+                            decimal? originPrice, decimal? openInterest,
+                            long? exchangeOrderId, long? aggressorExchangeOrderId)
+        {
+            if (!Admit(ref sourceUtc)) return;
+            EmitDueSnapshots(sourceUtc);
+            Interlocked.Increment(ref _trades);
+            Submit(RawEvent.Trade(NextSeq(), sourceUtc, DateTime.UtcNow, price, volume, aggressor,
+                                  originPrice, openInterest, exchangeOrderId, aggressorExchangeOrderId));
+        }
+
         /// <summary>Records one individual depth change. Non-blocking; safe from any thread.</summary>
         public void OnDepthChange(DateTime sourceUtc, string side, decimal price, decimal volume)
         {
@@ -161,6 +177,16 @@ namespace NFMarketDataRecorder.Core
             EmitDueSnapshots(sourceUtc);
             Interlocked.Increment(ref _depthChanges);
             Submit(RawEvent.Depth(NextSeq(), sourceUtc, DateTime.UtcNow, side, price, volume));
+        }
+
+        /// <summary>Records one individual depth change carrying an exchange order id.</summary>
+        public void OnDepthChange(DateTime sourceUtc, string side, decimal price, decimal volume,
+                                  long? exchangeOrderId)
+        {
+            if (!Admit(ref sourceUtc)) return;
+            EmitDueSnapshots(sourceUtc);
+            Interlocked.Increment(ref _depthChanges);
+            Submit(RawEvent.Depth(NextSeq(), sourceUtc, DateTime.UtcNow, side, price, volume, exchangeOrderId));
         }
 
         /// <summary>

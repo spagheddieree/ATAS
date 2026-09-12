@@ -3,8 +3,8 @@
 Captured **2026-09-12** on Linux 6.18.44 x86_64, .NET SDK **8.0.131**.
 Commit: see `git log` for this directory.
 
-> **Run four times** across two containers, the rename to NF Market Data Recorder, and
-> the `rev-2` provenance hardening (2026-09-12). Every event count below reproduced
+> **Run five times** across two containers, the rename to NF Market Data Recorder, the
+> `rev-2` provenance hardening and the `rev-3` measured-API binding (2026-09-12). Every event count below reproduced
 > exactly each time. The figures that are *expected* to vary are identified as such in
 > §2 and §3 — they measure the host's scheduling, not the data.
 
@@ -31,11 +31,11 @@ $ dotnet build NFMarketDataRecorder.sln -c Release
 Build succeeded.  0 Warning(s)  0 Error(s)
 
 $ dotnet test NFMarketDataRecorder.sln -c Release
-Passed!  - Failed: 0, Passed: 129, Skipped: 0, Total: 129
+Passed!  - Failed: 0, Passed: 145, Skipped: 0, Total: 145
 ```
 
 All four projects build with `TreatWarningsAsErrors` and produce zero warnings.
-Files: `build.txt`, `test-run.txt`, `test-inventory.txt` (all 129 test names).
+Files: `build.txt`, `test-run.txt`, `test-inventory.txt` (all 145 test names).
 
 Coverage against the required areas:
 
@@ -47,9 +47,10 @@ Coverage against the required areas:
 | Overflow and write failure | `OverflowAndFaultTests.cs` | 11 |
 | Clean shutdown | `ShutdownTests.cs` | 10 |
 | Deterministic comparisons | `DeterministicComparisonTests.cs` | 16 |
-| Provenance / source class / mode / run id / integrity | `ProvenanceContractTests.cs` | 34 |
+| Provenance / source class / mode / run id / integrity | `ProvenanceContractTests.cs` | 37 |
 | Instrument identity and non-merge rules | `InstrumentIdentityTests.cs` | 22 |
-| **Total** | | **129** |
+| API probe resolver (WindowsDesktop repair) | `ApiProbeResolverTests.cs` | 13 |
+| **Total** | | **145** |
 
 Counts are as enumerated by `dotnet test --list-tests`, so a `[Theory]` contributes one
 entry per case.
@@ -123,19 +124,20 @@ unpaced speed, queue reduced from 262 144 to **512** to force overflow.
 
 | Invariant | Value | Runs |
 |---|---|---|
-| Verdict | **DIVERGENT**, exit 4 | 3 / 3 |
-| `capture_complete` | **false** | 3 / 3 |
-| `written + dropped` | **180 599** — every event accounted for | 3 / 3 |
-| Fault code | `queue_overflow`, `capacity=512` | 3 / 3 |
-| Fault's first loss and the comparer's first divergence | **identify the same event** (`recorder_seq` N, canonical index N-1) | 4 / 4 |
+| Verdict | **DIVERGENT**, exit 4 | 5 / 5 |
+| `capture_complete` | **false** | 5 / 5 |
+| `written + dropped` | **180 599** — every event accounted for | 5 / 5 |
+| Fault code | `queue_overflow`, `capacity=512` | 5 / 5 |
+| Fault's first loss and the comparer's first divergence | **identify the same event** (`recorder_seq` N, canonical index N-1) | 5 / 5 |
 
 The last row is the point. The recorder's fault log and the comparer share no code and
 no inputs — the comparer never sees the fault log, only the two event files — yet they
 identify the same event as the first loss, every time. The integrity accounting and the
 comparison corroborate each other rather than sharing a common failure mode.
 
-The *value* of N is not itself an invariant and has moved (514 on three runs, 837 on
-`rev-2`, where writing the capture header shifts the producer/writer race slightly).
+The *value* of N is not itself an invariant and has moved (514 on three runs, then 837 on rev-2 and 916 on
+rev-3, as the capture header and the extra raw fields shifted the producer/writer
+race).
 What reproduces is the agreement between two independent mechanisms, which is what the
 control is testing.
 
@@ -147,6 +149,7 @@ control is testing.
 | fresh container | 51 656 | 128 943 |
 | post-rename | 53 939 | 126 660 |
 | rev-2 hardening | 54 094 | 126 505 |
+| rev-3 measured binding | 54 616 | 125 983 |
 
 Which events survive an overflow depends on how the writer thread is scheduled against
 the producer, so the split moves run to run. The *onset* of loss is deterministic — a
