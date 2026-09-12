@@ -1,0 +1,19 @@
+VERDICT: IDENTICAL
+A = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r3-1x/events.jsonl
+B = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r3-accelmax/events.jsonl
+
+events A            : 180599
+events B            : 180599
+differing lines     : 0
+strict match        : yes
+ts-bucket match     : yes
+shorter is prefix   : no
+
+per-kind counts (A | B):
+  depth         135244 |     135244
+  snapshot         599 |        599
+  trade          44756 |      44756
+
+interpretation:
+  Replay speed did not change the event stream. Every event and its
+  order is reproduced exactly at both speeds.

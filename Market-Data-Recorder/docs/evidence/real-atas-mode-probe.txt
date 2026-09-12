@@ -1,0 +1,17 @@
+Captured 2026-09-12T01:38:15Z
+
+Adapter in REAL-ATAS mode with no ATAS assemblies present.
+Confirms the stub masks nothing but the genuinely absent ATAS types.
+
+$ dotnet build src/NFMarketDataRecorder.ATAS/NFMarketDataRecorder.ATAS.csproj -c Release \
+    -p:UseRealAtas=true -p:AtasInstallDir=/nonexistent
+
+error codes:
+     14 error CS0246
+
+unresolved symbols (all ATAS types):
+      2 name 'ATAS' could not be found
+      2 name 'Indicator' could not be found
+      4 name 'MarketDataArg' could not be found
+      4 name 'MarketDataType' could not be found
+      2 name 'TradeDirection' could not be found

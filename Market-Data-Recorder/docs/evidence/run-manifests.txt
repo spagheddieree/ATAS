@@ -1,0 +1,20 @@
+===== r3-1x =====
+{"schema_version":"rev-1","instrument":"NQ (synthetic)","run_label":"1x","started_wall_utc":"2026-09-12T01:26:58.6021762Z","ended_wall_utc":"2026-09-12T01:36:58.6064068Z","first_src_ts":"2026-03-10T14:30:00.0015728Z","last_src_ts":"2026-03-10T14:39:59.9917691Z","source_span_ms":599990,"wall_span_ms":600004,"snapshot_interval_ms":1000,"snapshot_depth_limit":20,"queue_capacity":262144,"queue_high_water":9,"trades_seen":44756,"depth_changes_seen":135244,"snapshots_taken":599,"events_written":180599,"events_dropped":0,"write_failures":0,"drained":true,"capture_complete":true,"events_sha256":"6a1a7200a3e5d65b32b22f66fef3035d6d1d5025e59c340790caf4b78d4985ac","sidecar_error":"","fault_kinds":0}
+--- faults.jsonl ---
+(none)
+
+===== r3-accel60 =====
+{"schema_version":"rev-1","instrument":"NQ (synthetic)","run_label":"accel-60x","started_wall_utc":"2026-09-12T01:36:59.2575047Z","ended_wall_utc":"2026-09-12T01:37:09.3005708Z","first_src_ts":"2026-03-10T14:30:00.0015728Z","last_src_ts":"2026-03-10T14:39:59.9917691Z","source_span_ms":599990,"wall_span_ms":10043,"snapshot_interval_ms":1000,"snapshot_depth_limit":20,"queue_capacity":262144,"queue_high_water":592,"trades_seen":44756,"depth_changes_seen":135244,"snapshots_taken":599,"events_written":180599,"events_dropped":0,"write_failures":0,"drained":true,"capture_complete":true,"events_sha256":"7f856ad0c7ae0800250da4d3dea0f6d62e01eb3fa5db33853cda25fec0931aae","sidecar_error":"","fault_kinds":0}
+--- faults.jsonl ---
+(none)
+
+===== r3-accelmax =====
+{"schema_version":"rev-1","instrument":"NQ (synthetic)","run_label":"accel-max","started_wall_utc":"2026-09-12T01:37:09.9367924Z","ended_wall_utc":"2026-09-12T01:37:10.6328367Z","first_src_ts":"2026-03-10T14:30:00.0015728Z","last_src_ts":"2026-03-10T14:39:59.9917691Z","source_span_ms":599990,"wall_span_ms":696,"snapshot_interval_ms":1000,"snapshot_depth_limit":20,"queue_capacity":262144,"queue_high_water":132169,"trades_seen":44756,"depth_changes_seen":135244,"snapshots_taken":599,"events_written":180599,"events_dropped":0,"write_failures":0,"drained":true,"capture_complete":true,"events_sha256":"0162e40b6cb8b06d1b9fbdd658d86f9154b9aa8723d97bea7dea8ffc18f682e2","sidecar_error":"","fault_kinds":0}
+--- faults.jsonl ---
+(none)
+
+===== r3-starved =====
+{"schema_version":"rev-1","instrument":"NQ (synthetic)","run_label":"starved","started_wall_utc":"2026-09-12T01:37:11.3005817Z","ended_wall_utc":"2026-09-12T01:37:11.4778426Z","first_src_ts":"2026-03-10T14:30:00.0015728Z","last_src_ts":"2026-03-10T14:39:59.9917691Z","source_span_ms":599990,"wall_span_ms":177,"snapshot_interval_ms":1000,"snapshot_depth_limit":20,"queue_capacity":512,"queue_high_water":512,"trades_seen":44756,"depth_changes_seen":135244,"snapshots_taken":599,"events_written":53939,"events_dropped":126660,"write_failures":0,"drained":true,"capture_complete":false,"events_sha256":"76ad6887eabb3960eec7347b38cad45b55e79d62eea10265ac2d95bb7f9a514c","sidecar_error":"","fault_kinds":1}
+--- faults.jsonl ---
+{"code":"queue_overflow","count":126660,"first_src_ts":"2026-03-10T14:30:01.7082070Z","last_src_ts":"2026-03-10T14:39:59.9917691Z","first_seq":514,"last_seq":180599,"first_detail":"capacity=512"}
+
