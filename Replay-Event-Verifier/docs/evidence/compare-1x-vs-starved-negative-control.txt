@@ -1,22 +1,22 @@
 VERDICT: DIVERGENT
-A = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/run-1x/events.jsonl
-B = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/run-starved/events.jsonl
+A = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r2-1x/events.jsonl
+B = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r2-starved/events.jsonl
 
 events A            : 180599
-events B            : 53409
+events B            : 51656
 differing lines     : 180086
 strict match        : no
 ts-bucket match     : no
 shorter is prefix   : no
 
 per-kind counts (A | B):
-  depth         135244 |      39851   <-- DIFFERS
-  snapshot         599 |        544   <-- DIFFERS
-  trade          44756 |      13014   <-- DIFFERS
+  depth         135244 |      38478   <-- DIFFERS
+  snapshot         599 |        525   <-- DIFFERS
+  trade          44756 |      12653   <-- DIFFERS
 
 first divergence at canonical line index 513:
   A: {"kind":"trade","src_ts":"2026-03-10T14:30:01.7082070Z","price":19999.5,"volume":15,"aggressor":"sell"}
-  B: {"kind":"depth","src_ts":"2026-03-10T14:30:05.1634114Z","side":"ask","price":20004.25,"volume":0}
+  B: {"kind":"depth","src_ts":"2026-03-10T14:30:04.3948305Z","side":"bid","price":19999.25,"volume":272}
 
 source timestamps whose event sets differ (first 10):
   2026-03-10T14:30:01.7082070Z

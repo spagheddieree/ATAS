@@ -5,6 +5,7 @@
 **Branch:** `claude/atas-replay-event-verifier-xlgebm`
 **Base:** `main` @ `37bb54d`
 **Date:** 2026-09-12
+**Work package:** Real ATAS API Binding Verification + Windows Integration Readiness
 
 ---
 
@@ -32,14 +33,17 @@ experiment finds.
 | Automated tests (6 required areas) | **Done** — 73/73 |
 | 10-minute replay, 1x vs accelerated, compared and documented | **Done against a synthetic feed** — see caveat below |
 | The ATAS indicator adapter | **Written, type-checked against an ASSUMED API** |
-| The real ATAS Replay experiment | **NOT RUN — blocked, no GUI** |
+| Real ATAS API binding verification | **BLOCKED — no ATAS assemblies reachable** (B-2) |
+| `atas-api-probe` — reflection tool to close B-2 in one command | **Done, fixture-tested** |
+| Real ATAS build against actual assemblies | **NOT DONE — requires B-2** |
+| The real ATAS Replay experiment | **NOT RUN — blocked, no GUI** (B-1) |
 
 ## 2 · Blockers
 
 | # | Blocker | Evidence | Owner |
 |---|---|---|---|
 | **B-1** | No GUI, no Windows host, no ATAS installation. The real Replay experiment cannot be run. | Container is headless Linux. ATAS Replay is GUI-driven. | Owner — needs a Windows machine |
-| **B-2** | ATAS SDK unobtainable, so the adapter's API surface is unverified. | nuget.org 404 on all four ATAS packages; `atas.net` / `docs.atas.net` / `help.atas.net` egress-blocked; no local assemblies. Full table: `docs/ATAS-API-VERIFICATION.md` §1 | Same Windows machine |
+| **B-2** | ATAS SDK unobtainable, so the adapter's API surface is unverified. | Re-measured 2026-09-12 on a fresh container: no `ATAS*.dll` / `OFT*.dll` / `Utils.Common.dll` anywhere on disk; no cifs/smb/9p/virtiofs/drvfs/nfs mount (single ext4 root); wine not installed; **11** candidate NuGet ids all HTTP 404; `atas.net`, `docs.atas.net`, `help.atas.net`, `nuget.atas.net` all egress-blocked; the sibling ATAS project contains **no** reference precedent (its `.ATAS` folder is README-only). Full table: `docs/ATAS-API-VERIFICATION.md` §1 | Same Windows machine |
 
 Both are environmental and permanent for a Linux container — the ATAS assemblies ship
 with the Windows install and are not redistributable. Neither is a defect in this work.
@@ -64,26 +68,50 @@ Ten minutes of source time at 300 evt/s, recorded three times:
 `compare` 1x vs each accelerated run: **IDENTICAL**, 0 differing lines, exit 0 —
 including all 599 DOM snapshots, because snapshots are scheduled on source time.
 
-Negative control (queue cut to 512): 127 190 events dropped,
+Negative control (queue cut to 512): 128 943 events dropped,
 `capture_complete: false`, **DIVERGENT**, exit 4. The fault log's first loss (`seq`
 514) and the comparer's independently-derived first divergence (canonical index 513)
-agree exactly.
+agree exactly — and both reproduced across two containers whose later drop patterns
+differed, which is the expected shape: the onset of loss is deterministic, which
+events survive afterwards is scheduling-dependent.
+
+Re-verified 2026-09-12 on a fresh container from a clean toolchain install: every
+event count above reproduced exactly (180 599 / 44 756 / 135 244 / 599).
+
+Probe verification: `docs/evidence/api-probe-fixture-test.md` — `atas-api-probe` was
+tested against a fixture assembly and correctly reported both the assumed surface and
+two deliberately-unassumed aggregated members, which is the behaviour that makes it
+worth running.
 
 **Caveat, stated plainly: this measures the recorder, not ATAS.** The synthetic feed is
 not evidence about ATAS Replay. Its only value is removing the recorder as a variable.
 
 ## 4 · Exact resume action
 
-On a Windows machine with ATAS installed:
+On the Windows machine with ATAS installed, **one command unblocks B-2**:
 
-1. Work `docs/ATAS-API-VERIFICATION.md` §4 — build the adapter with
-   `-p:UseRealAtas=true` and fix each compile error against the numbered rows.
-   Fix the **adapter only**; if a fix seems to need a `Core` change, stop and
-   reconsider, because logic is leaking into the adapter.
-2. Run `docs/ATAS-API-VERIFICATION.md` §5 sanity checks. The highest-value one is
+```powershell
+cd Replay-Event-Verifier
+dotnet run -c Release --project tools/ReplayEventVerifier.ApiProbe
+```
+
+It finds the ATAS installation itself, reads assembly **metadata only** (ATAS need
+not be running, no ATAS code executes, nothing but the report is written), and emits
+`atas-api-report.md` giving the real signature of every symbol the adapter uses,
+plus a keyword sweep that reveals the correct entry points even where the adapter
+assumed the wrong names.
+
+Send that report back. Then, in order:
+
+1. Correct the adapter against the measured signatures — `docs/ATAS-API-VERIFICATION.md`
+   §3 rows map one-to-one onto the report's sections. Fix the **adapter only**; if a
+   fix seems to need a `Core` change, stop and reconsider, because logic is leaking
+   into the adapter.
+2. Build for real: `-p:UseRealAtas=true -p:AtasInstallDir="<directory the probe reported>"`.
+3. Run `docs/ATAS-API-VERIFICATION.md` §5 sanity checks. The highest-value one is
    replaying the depth-change stream into your own book and diffing it against the
    recorded snapshots — that is the check that can actually detect a missing update.
-3. Run `docs/GUI-REPLAY-RUNBOOK.md` end to end and commit the filled-in results block
+4. Run `docs/GUI-REPLAY-RUNBOOK.md` end to end and commit the filled-in results block
    from §7 into `docs/evidence/`.
 
 Two outcomes would be findings that end the investigation early rather than problems to
@@ -124,5 +152,11 @@ Full rationale: `docs/DESIGN.md`.
 
 No database (brief says not yet — and the point of V0.1 is to establish whether the
 data is trustworthy before choosing storage). No derived features of any kind. No
-unrelated refactors. No new runtime dependencies — `Core` has zero package references
-and JSON is hand-rolled for determinism; xunit is test-only. No PR opened.
+unrelated refactors. No PR opened, nothing merged. Dataset v0.1 and Feature Engine
+v0.1 not begun.
+
+`Core` still has **zero** package references and JSON is hand-rolled for determinism.
+Two dependencies exist and both are outside the shipped indicator: xunit (tests) and
+`System.Reflection.MetadataLoadContext` (the API probe — the only supported way to
+reflect over .NET Framework assemblies from a .NET 8 process without loading or
+executing them). Neither can reach the assembly that loads into ATAS.

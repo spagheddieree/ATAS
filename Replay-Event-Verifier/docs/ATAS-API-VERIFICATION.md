@@ -20,7 +20,9 @@ Measured in the authoring environment, not recalled:
 | " | `.../atas.strategies/index.json` | **HTTP 404** |
 | " | `.../utils.common/index.json` | **HTTP 404** |
 | Vendor docs | `curl https://atas.net/`, `https://docs.atas.net/`, `https://help.atas.net/en/` | **blocked** — proxy `connect_rejected`, organization egress policy |
-| Local assemblies | `find / -name 'ATAS.*.dll'` | none |
+| Local assemblies | `find / -xdev -iname 'ATAS*.dll' -o -iname 'OFT*.dll' -o -iname 'Utils.Common.dll'` | none |
+| Windows filesystem | `mount` — cifs/smb/9p/virtiofs/drvfs/nfs | **none**; single ext4 root, no host share |
+| Windows emulation | `which wine wine64` | **not installed**, no wine prefix |
 | Prior ATAS project on the account | `spagheddieree/atas` @ `claude/nq-volatility-atas-conversion-ifuil9` | exists, but its ATAS adapter was **also left unimplemented for this same reason** |
 
 The ATAS assemblies ship with the Windows installation and are not publicly
@@ -96,18 +98,35 @@ and should be fixed before anyone takes this to a Windows machine.
 
 ## 4 · Procedure
 
-```powershell
-# On a Windows machine with ATAS installed.
-cd Replay-Event-Verifier
+### Step 1 — run the probe (do this first)
 
-# 1. Confirm Core and the tests are green before touching the adapter, so any
-#    failure from here on is unambiguously an ATAS-binding problem.
+`tools/ReplayEventVerifier.ApiProbe` reads the real assemblies' metadata and reports
+what the API actually is. It replaces manual API archaeology with one command, and it
+answers rows 1–13 below from measurement rather than inspection.
+
+```powershell
+cd Replay-Event-Verifier
+dotnet run -c Release --project tools/ReplayEventVerifier.ApiProbe
+```
+
+It finds the installation itself — no path is assumed. It reads metadata only: ATAS
+need not be running, no ATAS code executes, and nothing but the report file is
+written. See `tools/ReplayEventVerifier.ApiProbe/README.md`.
+
+Send `atas-api-report.md` back. Every row below is then corrected against measured
+signatures instead of being rediscovered by compile errors.
+
+### Step 2 — build against the real assemblies
+
+```powershell
+# Confirm Core and the tests are green first, so any failure from here on is
+# unambiguously an ATAS-binding problem and not a regression.
 dotnet test ReplayEventVerifier.sln -c Release
 
-# 2. Build the adapter against the real assemblies.
+# The probe's report names the exact directory to use here.
 dotnet build src/ReplayEventVerifier.ATAS/ReplayEventVerifier.ATAS.csproj -c Release `
   -p:UseRealAtas=true `
-  -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform"
+  -p:AtasInstallDir="<directory reported by the probe>"
 ```
 
 Each compile error maps to a numbered row above. Fix it **in the adapter only** —

@@ -1,10 +1,6 @@
-Captured 2026-09-12T00:14:57Z
+Captured 2026-09-12T00:51:47Z
 
 $ dotnet test ReplayEventVerifier.sln -c Release
-  All projects are up-to-date for restore.
-  ReplayEventVerifier.Core -> /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.Core/bin/Release/netstandard2.0/ReplayEventVerifier.Core.dll
-  ReplayEventVerifier.Harness -> /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.Harness/bin/Release/net8.0/replay-verifier.dll
-  ReplayEventVerifier.Tests -> /home/user/atas/Replay-Event-Verifier/tests/ReplayEventVerifier.Tests/bin/Release/net8.0/ReplayEventVerifier.Tests.dll
 Test run for /home/user/atas/Replay-Event-Verifier/tests/ReplayEventVerifier.Tests/bin/Release/net8.0/ReplayEventVerifier.Tests.dll (.NETCoreApp,Version=v8.0)
 Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
 Copyright (c) Microsoft Corporation.  All rights reserved.
@@ -12,4 +8,4 @@ Copyright (c) Microsoft Corporation.  All rights reserved.
 Starting test execution, please wait...
 A total of 1 test files matched the specified pattern.
 
-Passed!  - Failed:     0, Passed:    73, Skipped:     0, Total:    73, Duration: 588 ms - ReplayEventVerifier.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:    73, Skipped:     0, Total:    73, Duration: 610 ms - ReplayEventVerifier.Tests.dll (net8.0)

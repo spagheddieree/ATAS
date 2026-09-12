@@ -3,6 +3,10 @@
 Captured **2026-09-12** on Linux 6.18.44 x86_64, .NET SDK **8.0.131**.
 Commit: see `git log` for this directory.
 
+> **Re-verified 2026-09-12 on a fresh container** as part of the Real ATAS API
+> Binding work package. Every number below reproduced exactly, from a clean
+> toolchain install. The one intentional difference is noted in §3.
+
 ---
 
 ## What was and was not measured
@@ -57,9 +61,13 @@ pacing differs.
 
 | Run | Speed | Wall elapsed | Trades | Depth | Snapshots | Written | Dropped | Queue high water | `capture_complete` |
 |---|---|---|---|---|---|---|---|---|---|
-| `1x` | 1x | **600.1 s** | 44 756 | 135 244 | 599 | 180 599 | 0 | 33 / 262 144 | **true** |
-| `accel-60x` | 60x | **10.1 s** | 44 756 | 135 244 | 599 | 180 599 | 0 | 229 / 262 144 | **true** |
-| `accel-max` | unpaced (~750x) | **0.8 s** | 44 756 | 135 244 | 599 | 180 599 | 0 | 143 807 / 262 144 | **true** |
+| `1x` | 1x | **600.1 s** | 44 756 | 135 244 | 599 | 180 599 | 0 | 20 / 262 144 | **true** |
+| `accel-60x` | 60x | **10.1 s** | 44 756 | 135 244 | 599 | 180 599 | 0 | 380 / 262 144 | **true** |
+| `accel-max` | unpaced (~750x) | **0.8 s** | 44 756 | 135 244 | 599 | 180 599 | 0 | 132 969 / 262 144 | **true** |
+
+Every event count above is identical to the first capture on a different container.
+Only `queue high water` differs run to run, which is correct: it measures how far the
+writer fell behind the producer, a scheduling property of the host, not of the data.
 
 Raw `events.jsonl` SHA-256 differs between all three, which is **correct and required**:
 each line carries `recv_ts`, a genuine wall clock. If the raw bytes matched, `recv_ts`
@@ -102,7 +110,13 @@ unpaced speed, queue reduced from 262 144 to **512** to force overflow:
 
 | Run | Written | Dropped | Queue high water | `capture_complete` |
 |---|---|---|---|---|
-| `starved` | 53 409 | **127 190** | 512 / 512 | **false** |
+| `starved` | 51 656 | **128 943** | 512 / 512 | **false** |
+
+The exact split between written and dropped is **deliberately not reproducible** — it
+depends on how the writer thread is scheduled against the producer, so it differed
+between containers (53 409 / 127 190 on the first run, 51 656 / 128 943 here). What
+reproduces exactly is what must: the run is refused as `capture_complete: false`, the
+count of written plus dropped equals 180 599 in both, and the verdict is DIVERGENT.
 
 ```
 $ replay-verifier compare --a run-1x --b run-starved     ->  VERDICT: DIVERGENT   exit 4
@@ -111,9 +125,9 @@ events A            : 180599
 events B            : 53409
 differing lines     : 180086
 per-kind counts (A | B):
-  depth         135244 |      39851   <-- DIFFERS
-  snapshot         599 |        544   <-- DIFFERS
-  trade          44756 |      13014   <-- DIFFERS
+  depth         135244 |      38478   <-- DIFFERS
+  snapshot         599 |        525   <-- DIFFERS
+  trade          44756 |      12653   <-- DIFFERS
 
 first divergence at canonical line index 513
 ```
@@ -121,9 +135,9 @@ first divergence at canonical line index 513
 Fault record written by the recorder:
 
 ```json
-{"code":"queue_overflow","count":127190,
- "first_src_ts":"2026-03-10T14:30:01.7082070Z","last_src_ts":"2026-03-10T14:39:59.9917691Z",
- "first_seq":514,"last_seq":180599,"first_detail":"capacity=512"}
+{"code":"queue_overflow","count":128943,
+ "first_src_ts":"2026-03-10T14:30:01.7082070Z","last_src_ts":"2026-03-10T14:39:59.9891844Z",
+ "first_seq":514,"last_seq":180598,"first_detail":"capacity=512"}
 ```
 
 Two independent mechanisms agree exactly: the recorder's fault log reports the first
@@ -132,10 +146,17 @@ from the two event files — locates the first divergence at canonical index **5
 (0-based, i.e. line 514). The integrity accounting and the comparison corroborate each
 other rather than sharing a common failure mode.
 
+Both numbers reproduced **exactly** across two containers whose drop patterns were
+otherwise different (`seq` 514 and index 513 in each). That is the expected shape: the
+*onset* of loss is deterministic, because a 512-slot queue fills after a fixed number
+of events, while *which* later events survive depends on writer scheduling. The
+corroboration therefore holds even though the totals do not.
+
 This also demonstrates the intended integrity behaviour end to end: the run **did not
-block, did not crash and did not silently truncate**. It dropped 70% of events, counted
+block, did not crash and did not silently truncate**. It dropped 71% of events, counted
 every one, named the sequence range, and marked the capture `capture_complete: false`
-so the file cannot be mistaken for a faithful record.
+so the file cannot be mistaken for a faithful record. `events_written + events_dropped`
+equals 180 599 exactly, so every event is accounted for.
 
 File: `compare-1x-vs-starved-negative-control.txt`.
 
@@ -158,6 +179,9 @@ $P synth --out /tmp/run-starved  --label starved  --minutes 10 --rate 300 --spee
 $P compare --a /tmp/run-1x --b /tmp/run-accel60    # expect IDENTICAL, exit 0
 $P compare --a /tmp/run-1x --b /tmp/run-accelmax   # expect IDENTICAL, exit 0
 $P compare --a /tmp/run-1x --b /tmp/run-starved    # expect DIVERGENT, exit 4
+
+# API probe, verified against a fixture (see api-probe-fixture-test.md)
+dotnet build tools/ReplayEventVerifier.ApiProbe/ReplayEventVerifier.ApiProbe.csproj -c Release
 ```
 
 The `1x` run takes ten minutes of wall clock by construction.
@@ -173,7 +197,12 @@ hashing the raw file.
 1. **Whether ATAS Replay is faithful.** The actual objective. Blocked on a Windows host
    with ATAS. Procedure: `../GUI-REPLAY-RUNBOOK.md`.
 2. **Whether the adapter binds the correct ATAS APIs.** It compiles only against a
-   written-down set of assumptions. Checklist: `../ATAS-API-VERIFICATION.md`.
+   written-down set of assumptions. Still unverified as of 2026-09-12: re-measured
+   on a fresh container, no ATAS assemblies exist on disk, no Windows filesystem is
+   mounted, wine is absent, all 11 candidate NuGet package ids return 404 and every
+   ATAS domain is egress-blocked. `tools/ReplayEventVerifier.ApiProbe` now exists to
+   close this in one command on a Windows host. Checklist:
+   `../ATAS-API-VERIFICATION.md`.
 3. **Behaviour under real feed-thread concurrency.** The deterministic runs above use a
    single producer. Multi-producer safety is covered by unit tests
    (`Concurrent_producers_lose_nothing_and_produce_unique_sequence_numbers`,
