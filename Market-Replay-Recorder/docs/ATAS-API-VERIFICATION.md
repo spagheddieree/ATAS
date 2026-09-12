@@ -180,25 +180,57 @@ Fixed in three places, so the same class of defect cannot recur silently:
 
 ### Wrong real-mode target framework
 
-The project targeted `net472` in real mode. The installed ATAS assemblies are
-**`.NETCoreApp,Version=v8.0`**, so that build could not legally consume them:
-CS0012 (`System.Runtime 8.0.0.0` missing), CS0115 (no suitable method to override),
-CS0534 (abstract member unresolved).
+This took two corrections, and the second one matters more than the first because
+it is the one that will recur.
 
-Real mode now targets **`net8.0-windows`** with `UseWPF`. The Windows-specific TFM
-is chosen on a measured reference requirement, not because ATAS is a Windows app:
-resolving `ATAS.Indicators` metadata requires `PresentationCore`,
-`PresentationFramework`, `WindowsBase` and `System.Xaml` — the same requirement that
-broke the API probe — and `Indicator` carries WPF types in its own member
-signatures while this adapter derives from it. It is a deliberate superset: a
-missing WPF reference fails the build, an unnecessary one does not. If a real
-Windows build shows plain `net8.0` resolves everything, it can be narrowed.
+**Correction 1 — wrong framework family.** The project targeted `net472` in real
+mode. The ATAS assemblies as measured then were **`.NETCoreApp,Version=v8.0`**, so
+that build could not legally consume them: CS0012 (`System.Runtime 8.0.0.0`
+missing), CS0115 (no suitable method to override), CS0534 (abstract member
+unresolved). ATAS was never the .NET Framework host that configuration assumed.
+Real mode moved to `net8.0-windows`.
+
+**Correction 2 — right family, stale version.** That net8 reading was accurate
+when taken and is now stale. Re-measured on the Windows machine 2026-09-12, both
+installed products run **`net10.0`** and ship `.NETCoreApp,Version=v10.0`
+assemblies. The `net8.0-windows` default therefore failed on both with **CS1705**:
+
+```
+ATAS.Indicators uses System.Runtime, Version=10.0.0.0
+which is higher than referenced System.Runtime, Version=8.0.0.0
+```
+
+The default is now **`net10.0-windows`**, compile-verified against the real
+assemblies of both products (SDK 10.0.400, `-warnaserror`, EXIT=0, 0 warnings).
+`net8.0-windows` is retained as an explicit opt-in compatibility target for older
+net8-based installations, and is **not** claimed to work with either product now
+installed. Full measurement:
+`docs/evidence/cowork-windows-runtime-measurement.md`.
+
+**The general lesson, which is the durable part.** Classic measured
+`.NETCoreApp,Version=v8.0` at 2026-09-12T01:35Z and `v10.0` the same afternoon, on
+the same machine. The runtime is a property of the installation and it moves under
+you. Two signals are authoritative and must be re-read each time: the `tfm` in
+`OFT.Platform.runtimeconfig.json` / `OFT.PlatformX.runtimeconfig.json`, and the
+`TargetFrameworkAttribute` on the assemblies. Assembly version labels are not a
+signal — `ATAS.Indicators` reports identity `8.0.14.399` (Classic) and `8.0.15.643`
+(ATAS X) while both are net10.
+
+**Why `-windows` rather than plain `net10.0`.** A measured reference requirement,
+not because ATAS is a Windows app: resolving `ATAS.Indicators` metadata requires
+`PresentationCore`, `PresentationFramework`, `WindowsBase` and `System.Xaml` — the
+same requirement that broke the API probe — and `Indicator` carries WPF types in
+its own member signatures while this adapter derives from it. It is a deliberate
+superset: a missing WPF reference fails the build, an unnecessary one does not. If
+a real Windows build shows plain `net10.0` resolves everything, it can be narrowed.
 
 The explicit `System.ComponentModel.DataAnnotations` reference is gone — it existed
-only because of `net472`; under .NET 8 those attributes are in the shared framework.
+only because of `net472`; under .NET 8 and later those attributes are in the shared
+framework.
 
-`Core` stays on `netstandard2.0`, which .NET 8 consumes fine. Only its stale comment
-calling ATAS ".NET Framework based" was corrected.
+`Core` stays on `netstandard2.0`, which every .NET Core runtime from 2.0 up
+consumes. That is precisely why it was not chased from net8 to net10: a lowest
+common denominator cannot be invalidated by a platform upgrade.
 
 ## 5 · What is still UNKNOWN
 

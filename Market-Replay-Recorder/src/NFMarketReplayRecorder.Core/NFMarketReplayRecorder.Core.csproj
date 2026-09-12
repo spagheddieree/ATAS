@@ -2,11 +2,13 @@
 
   <PropertyGroup>
     <!-- netstandard2.0 so this assembly loads in the ATAS runtime without a
-         second build. The installed ATAS is .NETCoreApp 8.0 (measured on the real
-         assemblies, correcting an earlier note here that called it .NET Framework
-         based); netstandard2.0 is consumable from .NET 8, so the target is still
-         right and is deliberately left alone. It also keeps Core usable from the
-         netstandard stub build and from any future ATAS runtime. -->
+         second build, whatever that runtime turns out to be. Both installed
+         products measured .NETCoreApp 10.0 on 2026-09-12; Classic measured 8.0
+         earlier the same day, which is exactly why this target is pinned to the
+         lowest common denominator rather than to a runtime reading. Every .NET
+         Core runtime from 2.0 up consumes netstandard2.0, so a platform upgrade
+         underneath an install cannot invalidate it. It also keeps Core usable
+         from the netstandard stub build. -->
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>9.0</LangVersion>
     <Nullable>disable</Nullable>

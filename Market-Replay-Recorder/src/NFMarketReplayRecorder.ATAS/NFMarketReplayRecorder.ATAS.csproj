@@ -13,9 +13,10 @@
 
     2. REAL MODE (on a Windows machine with ATAS installed)
          dotnet build -c Release -p:UseRealAtas=true -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform"
-       Excludes the stub and references the real assemblies. Targets net8.0-windows
-       because the installed ATAS assemblies are .NETCoreApp 8.0 — see the target
-       framework note below.
+       Excludes the stub and references the real assemblies. Targets whatever
+       $(AtasTargetFrameworks) resolves to, which defaults to the runtime the
+       currently installed products were measured on — see the target framework
+       note below.
   -->
 
   <PropertyGroup>
@@ -23,36 +24,56 @@
   </PropertyGroup>
 
   <!--
-    REAL-MODE TARGET FRAMEWORKS — dual-platform, measured where possible.
+    REAL-MODE TARGET FRAMEWORKS — dual-platform, selected from measurement.
 
-    The previous net472 target could not legally consume the installed ATAS
-    assemblies, which report .NETCoreApp,Version=v8.0: CS0012 (System.Runtime
-    8.0.0.0 missing), CS0115 and CS0534. ATAS is not the .NET Framework host the
-    old configuration assumed.
+    The runtime is a property of the INSTALLATION, and it moves. Read it; never
+    infer it.
 
-    ATAS ships two products and supported installations may run on different
-    runtimes, so the indicator TFM must match the runtime of the installation it
-    is loaded into:
+      ATAS Classic  OFT.Platform.runtimeconfig.json
+      ATAS X        OFT.PlatformX.runtimeconfig.json
 
-      ATAS Classic  Windows/WPF platform      OFT.Platform.runtimeconfig.json
-      ATAS X        newer cross-platform      OFT.PlatformX.runtimeconfig.json
+    Two signals are authoritative: the "tfm" in that runtimeconfig, and the
+    TargetFrameworkAttribute on the ATAS assemblies themselves. The assembly
+    VERSION label is not a signal. Measured 2026-09-12: ATAS.Indicators reports
+    identity 8.0.14.399 on Classic and 8.0.15.643 on ATAS X, yet both assemblies
+    are .NETCoreApp,Version=v10.0 and both products run net10.0.
 
-    Read the "tfm" value from the relevant runtimeconfig — that, not the product
-    version label, selects the artifact. See docs/WINDOWS-INSTALL.md.
+    CURRENT MEASURED STATE (Windows machine, 2026-09-12, both products):
 
-    $(AtasTargetFrameworks) drives this, defaulting to net8.0-windows because
-    that is the only runtime whose ATAS assemblies have actually been measured
-    here. Add net10.0-windows when a .NET 10 SDK is present:
+      ATAS Classic  runtimeconfig tfm net10.0   assemblies .NETCoreApp v10.0
+      ATAS X        runtimeconfig tfm net10.0   assemblies .NETCoreApp v10.0
 
-      -p:AtasTargetFrameworks="net8.0-windows;net10.0-windows"
+    So the default is net10.0-windows. It is COMPILE-VERIFIED against the real
+    assemblies of both installed products: with .NET SDK 10.0.400, this exact
+    reference set and -warnaserror, Classic and ATAS X each built EXIT=0 with 0
+    warnings. It is NOT runtime-verified — neither product has loaded the
+    recorder yet.
 
-    Defaulting to the multitarget line instead would break the build outright on
-    a machine with only the .NET 8 SDK, which is the machine validation is about
-    to run on. net10.0-windows is therefore STRUCTURALLY SUPPORTED but NOT
-    COMPILE-VERIFIED — no .NET 10 SDK and no net10 ATAS reference set was
-    available. It is not claimed as working.
+    net8.0-windows is RETAINED as an explicit compatibility target for older,
+    net8-based ATAS installations:
 
-    Why -windows rather than plain net8.0: resolving ATAS.Indicators metadata
+      -p:AtasTargetFrameworks=net8.0-windows
+
+    It is not claimed to work with either currently installed product, and it
+    demonstrably does not: against these net10 assemblies it fails CS1705
+    (ATAS.Indicators uses System.Runtime 10.0.0.0, higher than the referenced
+    8.0.0.0). The retention is deliberate rather than nostalgic — Classic on
+    this very machine measured .NETCoreApp v8.0 at 2026-09-12T01:35Z and had
+    moved to v10.0 by that afternoon, so net8 installations exist in the field
+    and the platform demonstrably migrates underneath an install.
+
+    For an explicit multitarget list, escape the semicolon: MSBuild otherwise
+    splits an unescaped one into a second switch and fails MSB1006.
+
+      "-p:AtasTargetFrameworks=net8.0-windows%3Bnet10.0-windows"
+
+    HISTORICAL, kept because it explains the shape of this file: real mode once
+    targeted net472. That could not legally consume the ATAS assemblies as they
+    were then measured, .NETCoreApp,Version=v8.0, and failed CS0012, CS0115 and
+    CS0534. ATAS was never the .NET Framework host that configuration assumed.
+    The framework family, not the version, was the error there.
+
+    Why -windows rather than plain net10.0: resolving ATAS.Indicators metadata
     demonstrably requires PresentationCore, PresentationFramework, WindowsBase
     and System.Xaml — the same requirement that broke the API probe — and
     ATAS.Indicators.Indicator carries WPF types in its own member signatures
@@ -69,7 +90,7 @@
     sensitive and ATAS guidance for ordinary custom indicators is AnyCPU.
   -->
   <PropertyGroup>
-    <AtasTargetFrameworks Condition="'$(AtasTargetFrameworks)' == ''">net8.0-windows</AtasTargetFrameworks>
+    <AtasTargetFrameworks Condition="'$(AtasTargetFrameworks)' == ''">net10.0-windows</AtasTargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -96,8 +117,8 @@
   <!--
     No explicit System.ComponentModel.DataAnnotations reference. It was required
     only because the project targeted net472, where it is a separate framework
-    assembly. Under .NET 8 the Display and Range attributes come from the shared
-    framework and an explicit Reference is obsolete.
+    assembly. Under .NET 8 and later the Display and Range attributes come from
+    the shared framework and an explicit Reference is obsolete.
   -->
 
   <ItemGroup Condition="'$(UseRealAtas)' == 'true'">

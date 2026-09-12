@@ -45,9 +45,9 @@ experiment finds.
 | Probe WindowsDesktop resolver defect | **Repaired + tested** |
 | Real-ATAS build defects (net472 target, CS0104 enum ambiguity) | **Repaired** |
 | Dual-platform architecture (ATAS Classic + ATAS X) | **Done — multitarget, audited** |
-| `net8.0-windows` target | **Compile-verified against the stub; NOT yet built on Windows** |
-| `net10.0-windows` target | **Structurally supported — NOT VERIFIED** (no .NET 10 SDK, no net10 ATAS refs) |
-| Real ATAS build against actual assemblies | **NOT DONE — needs the Windows machine** |
+| `net10.0-windows` target (the default) | **COMPILE-VERIFIED against the real assemblies of both products** — Classic and ATAS X, SDK 10.0.400, `-warnaserror`, EXIT=0 / 0 warnings |
+| `net8.0-windows` target | **Retained as opt-in compatibility for older net8 installations**; fails CS1705 against the currently installed net10 assemblies, and is not claimed to work with them |
+| Real ATAS build against actual assemblies | **DONE for compilation, both products** — see `docs/evidence/cowork-windows-runtime-measurement.md`. Runtime load still NOT DONE |
 | ATAS X runtime support | **NOT VERIFIED** — code-surface audit only |
 | The real ATAS Replay experiment | **NOT RUN — blocked, no GUI** (B-1) |
 
@@ -55,19 +55,20 @@ experiment finds.
 
 | # | Blocker | Evidence | Owner |
 |---|---|---|---|
-| **B-1** | No GUI, no Windows host, no ATAS installation. The real Replay experiment cannot be run. | Container is headless Linux. ATAS Replay is GUI-driven. | Owner — needs a Windows machine |
-| **B-2** | ATAS SDK unobtainable, so the adapter's API surface is unverified. | Re-measured 2026-09-12 on a fresh container: no `ATAS*.dll` / `OFT*.dll` / `Utils.Common.dll` anywhere on disk; no cifs/smb/9p/virtiofs/drvfs/nfs mount (single ext4 root); wine not installed; **11** candidate NuGet ids all HTTP 404; `atas.net`, `docs.atas.net`, `help.atas.net`, `nuget.atas.net` all egress-blocked; the sibling ATAS project contains **no** reference precedent (its `.ATAS` folder is README-only). Full table: `docs/ATAS-API-VERIFICATION.md` §1 | Same Windows machine |
+| **B-1** | No GUI, no Windows host, no ATAS installation in this lane. The real Replay experiment cannot be run here. | Container is headless Linux; ATAS Replay is GUI-driven. | Owner / Cowork Windows worker |
+| **B-2** | ~~ATAS SDK unobtainable, adapter API surface unverified.~~ **CLOSED 2026-09-12.** | Real assemblies measured on the Windows machine; adapter bound to the measured signatures; the real-mode compile now succeeds against both products' assemblies. `docs/ATAS-API-VERIFICATION.md`, `docs/evidence/cowork-windows-runtime-measurement.md` | Closed |
 
-Both are environmental and permanent for a Linux container — the ATAS assemblies ship
-with the Windows install and are not redistributable. Neither is a defect in this work.
+B-1 is environmental and permanent for a Linux container: ATAS Replay is a GUI
+workflow on a Windows host. It is not a defect in this work. B-2 is closed — the
+assemblies were measured where they live, on the machine that has them.
 
 ## 3 · Verification evidence
 
 All commands and outputs: `docs/evidence/RESULTS.md`.
 
 ```
-dotnet build NFMarketReplayRecorder.sln -c Release   ->  0 Warning(s)  0 Error(s)
-dotnet test  NFMarketReplayRecorder.sln -c Release   ->  Passed: 73, Failed: 0
+dotnet build MarketReplayRecorder.sln -c Release    ->  0 Warning(s)  0 Error(s)
+dotnet test  MarketReplayRecorder.sln -c Release     ->  Passed: 164, Failed: 0
 ```
 
 Ten minutes of source time at 300 evt/s, recorded three times:
@@ -91,6 +92,11 @@ events survive afterwards is scheduling-dependent.
 Re-verified 2026-09-12 on a fresh container from a clean toolchain install: every
 event count above reproduced exactly (180 599 / 44 756 / 135 244 / 599).
 
+Re-verified again after the net10 real-mode default repair, including a backward
+compatibility check against a capture written by the pre-repair binary built from
+`debb57c`: **IDENTICAL**, both manifests `rev-3`. Full run:
+`docs/evidence/RESULTS.md` §3.6.
+
 Probe verification: `docs/evidence/api-probe-fixture-test.md` — `atas-api-probe` was
 tested against a fixture assembly and correctly reported both the assumed surface and
 two deliberately-unassumed aggregated members, which is the behaviour that makes it
@@ -101,31 +107,42 @@ not evidence about ATAS Replay. Its only value is removing the recorder as a var
 
 ## 4 · Exact resume action
 
-On the Windows machine with ATAS installed, **one command unblocks B-2**:
+Everything that can be done without a Windows host is done. What remains is
+**runtime** validation of both products, on the Windows machine.
 
-```powershell
-cd Market-Replay-Recorder
-dotnet run -c Release --project tools/NFMarketReplayRecorder.ApiProbe
-```
+### Already closed, do not redo
 
-It finds the ATAS installation itself, reads assembly **metadata only** (ATAS need
-not be running, no ATAS code executes, nothing but the report is written), and emits
-`atas-api-report.md` giving the real signature of every symbol the adapter uses,
-plus a keyword sweep that reveals the correct entry points even where the adapter
-assumed the wrong names.
+| | Status |
+|---|---|
+| API probe against real assemblies | run; `docs/evidence/atas-api-report.md` |
+| Adapter bound to measured signatures | done (`rev-3`) |
+| Enum ambiguity (CS0104) | fixed, guarded by 19 tests |
+| Target framework | `net10.0-windows` default, compile-verified against **both** products |
+| Real-mode compile | EXIT=0 / 0 warnings vs Classic and vs ATAS X, SDK 10.0.400, `-warnaserror` |
 
-Send that report back. Then, in order:
+### The remaining steps, in order
 
-1. Correct the adapter against the measured signatures — `docs/ATAS-API-VERIFICATION.md`
-   §3 rows map one-to-one onto the report's sections. Fix the **adapter only**; if a
-   fix seems to need a `Core` change, stop and reconsider, because logic is leaking
-   into the adapter.
-2. Build for real: `-p:UseRealAtas=true -p:AtasInstallDir="<directory the probe reported>"`.
-3. Run `docs/ATAS-API-VERIFICATION.md` §5 sanity checks. The highest-value one is
+1. **Verify the runtime has not moved again.** Re-read the `tfm` from
+   `OFT.Platform.runtimeconfig.json` and `OFT.PlatformX.runtimeconfig.json` and the
+   `TargetFrameworkAttribute` on the assemblies. Classic changed from net8 to net10
+   mid-validation once already; a stale reading is how this step fails.
+2. **Build for each product** against its own install directory — the two products
+   ship different assemblies under identical names:
+   `-p:UseRealAtas=true -p:AtasInstallDir="<that product's directory>"`. No TFM
+   override unless step 1 says otherwise.
+3. **Install** the two DLLs into the product-specific folder, `%APPDATA%\ATAS\Indicators`
+   or `%APPDATA%\ATAS X\Indicators`, or via the platform's "Add custom indicator"
+   workflow. Back up anything already there. Do not cross-install.
+4. **Load on each product independently** and record what happened, including whether
+   a restart was needed. A pass on one says nothing about the other.
+5. **Set Acquisition mode = REPLAY.** It is never inferred; an unset run records
+   `UNKNOWN`.
+6. **Run `docs/GUI-REPLAY-RUNBOOK.md` end to end** on one fixed 10-minute NQ interval:
+   1x, 60x, and unpaced where genuinely supported. Answer §9 A–E per product and
+   commit the filled-in results block into `docs/evidence/`.
+7. **Sanity checks** from `docs/ATAS-API-VERIFICATION.md` §5. The highest-value one is
    replaying the depth-change stream into your own book and diffing it against the
-   recorded snapshots — that is the check that can actually detect a missing update.
-4. Run `docs/GUI-REPLAY-RUNBOOK.md` end to end and commit the filled-in results block
-   from §7 into `docs/evidence/`.
+   recorded snapshots — the only check that can actually detect a missing update.
 
 Two outcomes would be findings that end the investigation early rather than problems to
 solve: ATAS exposing only **aggregated** trades, or only **whole-book refreshes**

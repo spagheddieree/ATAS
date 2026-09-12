@@ -219,6 +219,70 @@ written before that repair still compares `IDENTICAL`, both at `rev-3`.
 
 ---
 
+## 3.6 · Regression after the net10 real-mode default repair
+
+The real-mode default target moved from `net8.0-windows` to `net10.0-windows`
+because both installed ATAS products were measured at `net10.0`
+(`cowork-windows-runtime-measurement.md`). That change touches only MSBuild
+properties and comments — no recorder code — so the whole regression was re-run to
+prove exactly that.
+
+**MSBuild property resolution** (evaluated locally, SDK 8.0.131):
+
+```
+default, stub mode        TargetFramework  = netstandard2.0   (unchanged)
+-p:UseRealAtas=true       TargetFrameworks = net10.0-windows   UseWPF = true
+  + -p:AtasTargetFrameworks=net8.0-windows          -> net8.0-windows
+  + "-p:AtasTargetFrameworks=net8.0-windows%3Bnet10.0-windows" -> net8.0-windows;net10.0-windows
+```
+
+Stub mode is untouched, which is why the solution still builds and tests on a
+.NET 8-only machine.
+
+**Build and tests:** `0 Warning(s) 0 Error(s)`; `Passed: 164, Failed: 0`.
+
+**Synthetic regression**, ten minutes of source time at 300 evt/s, seed `20260911`:
+
+| Run | Wall | Trades | Depth | Snapshots | Written | Dropped | Queue high water | Integrity |
+|---|---|---|---|---|---|---|---|---|
+| `1x` | 600.1 s | 44 756 | 135 244 | 599 | 180 599 | 0 | 21 / 262 144 | CLEAN |
+| `accel-60x` | — | 44 756 | 135 244 | 599 | 180 599 | 0 | 127 / 262 144 | CLEAN |
+| `accel-max` | — | 44 756 | 135 244 | 599 | 180 599 | 0 | 135 303 / 262 144 | CLEAN |
+
+**Comparisons:**
+
+```
+compare 1x vs accel-60x       -> VERDICT: IDENTICAL   0 differing lines   exit 0
+compare 1x vs accel-max       -> VERDICT: IDENTICAL   0 differing lines   exit 0
+compare 1x vs pre-repair      -> VERDICT: IDENTICAL   0 differing lines   exit 0
+compare 1x vs starved         -> VERDICT: DIVERGENT   exit 4
+```
+
+**Backward compatibility.** `run-pre-repair` was written by a harness built from
+`debb57c` — the tree as it stood *before* this repair, extracted with `git archive`
+and compiled separately — and read back by the repaired binary. IDENTICAL, both
+manifests `rev-3`. The schema was not bumped, correctly: a target-framework default
+is not a serialized contract.
+
+**Negative control** (queue cut to 512): 124 466 dropped, `capture_complete: false`,
+`integrity_state: CORRUPT`, exit 4. The fault log's first loss (`first_seq` 873) and
+the comparer's independently derived first divergence (canonical index 872) agree
+exactly. That agreement has now held across eight runs whose drop totals all differ
+(514, 837, 916, 821, 822, …, 873) — the onset is deterministic, the survivors are
+scheduling-dependent, and the two subsystems derive the onset independently.
+
+**Raw `events.jsonl` SHA-256 differs across all four CLEAN runs**, as required:
+`236e4d3c…`, `b21fb58f…`, `d9bb90ee…`, `3393f5c0…`. Canonical equality with raw
+inequality is the whole point of the projection.
+
+**Platform audit re-run:** 0 hits for custom `Window`, `UserControl`,
+`DataTemplateSelector`, Avalonia, `Dispatcher`, `.xaml` across `src`, `tests`,
+`tools`. Enum binding unchanged: the adapter imports `ATAS.Indicators` only, aliases
+`AtasTradeDirection` and `AtasMarketDataType` to the `ATAS.Indicators` pair, and the
+stub still declares both colliding pairs so CI keeps reproducing CS0104.
+
+---
+
 ## 4 · Reproducing
 
 ```bash

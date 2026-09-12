@@ -16,8 +16,12 @@ validated on its own, and reported separately.
 | Need | Why | Check |
 |---|---|---|
 | ATAS installed (Classic and/or X) | supplies the assemblies to build against | `ATAS.Indicators.dll` exists in the install directory |
-| .NET SDK 8.x | builds the solution and the probe | `dotnet --version` |
-| .NET **Desktop** Runtime 8.x | ATAS assemblies reference WPF types; both the probe and the `net8.0-windows` adapter build need it | `dotnet --list-runtimes` shows `Microsoft.WindowsDesktop.App 8.x` |
+| .NET SDK matching the installed product's runtime | builds the adapter against the real assemblies | `dotnet --list-sdks`; measured 2026-09-12 the machine has **10.0.400**, and both products need net10 |
+| .NET SDK 8.x | builds the solution, the tests and the probe | `dotnet --version` |
+| .NET **Desktop** Runtime, same major as the product | ATAS assemblies reference WPF types; both the probe and the `-windows` adapter build need it | `dotnet --list-runtimes` shows `Microsoft.WindowsDesktop.App`; measured **10.0.11** ref pack present |
+
+Determine the required major from §5.1 before installing anything — it is a
+property of the installation, and it changes when ATAS updates.
 
 If `Microsoft.WindowsDesktop.App` is missing, install the .NET Desktop Runtime from
 Microsoft. The probe discovers it automatically — **do not** copy
@@ -38,7 +42,7 @@ dotnet build MarketReplayRecorder.sln -c Release
 dotnet test  MarketReplayRecorder.sln -c Release
 ```
 
-Expect **0 warnings** and **145 passing**. Doing this first means any later failure is
+Expect **0 warnings** and **164 passing**. Doing this first means any later failure is
 unambiguously an ATAS-binding problem rather than a regression.
 
 ## 3 · Re-run the probe natively (5 minutes, worth it)
@@ -66,15 +70,26 @@ dotnet build src\NFMarketReplayRecorder.ATAS\NFMarketReplayRecorder.ATAS.csproj 
   -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform"
 ```
 
-The first attempt at this step failed and the two defects it exposed are fixed:
-the project targeted `net472` while the installed ATAS assemblies are .NETCoreApp
-8.0, and the adapter used enum names that are ambiguous between `ATAS.Indicators`
-and `ATAS.DataFeedsCore`. See `docs/ATAS-API-VERIFICATION.md` §4.4.
+No `-p:AtasTargetFrameworks` is needed: the default is now **`net10.0-windows`**,
+which is the runtime both installed products were measured on (§5.1). Adapt
+`AtasInstallDir` if preflight measures a different path, and use the ATAS X install
+directory when building for ATAS X.
 
-**This build has still not been executed successfully on Windows.** The fixes are
-verified locally — the stub build now reproduces the exact CS0104 pair when the
-defect is reintroduced — but a diagnostic compile is not an MSBuild run on the real
-machine. If it fails, each error maps to a row in `ATAS-API-VERIFICATION.md`.
+Three defects have been found and fixed at this step, in order:
+
+| Attempt | Failure | Fix |
+|---|---|---|
+| 1 | `net472` target vs .NETCoreApp assemblies — CS0012, CS0115, CS0534 | moved off .NET Framework entirely |
+| 2 | `MarketDataType` / `TradeDirection` ambiguous between `ATAS.Indicators` and `ATAS.DataFeedsCore` — CS0104 | explicit aliases; stub declares both pairs so CI reproduces the collision |
+| 3 | `net8.0-windows` default vs net10 assemblies — **CS1705** (`ATAS.Indicators` uses `System.Runtime` 10.0.0.0, higher than the referenced 8.0.0.0) | default moved to `net10.0-windows` |
+
+See `docs/ATAS-API-VERIFICATION.md` §4.4 and
+`docs/evidence/cowork-windows-runtime-measurement.md`.
+
+**Status of this command.** Compile-verified against the real assemblies of both
+products on the Windows machine (SDK 10.0.400, `-warnaserror`, EXIT=0, 0 warnings
+each). Not runtime-verified: neither product has loaded the resulting DLL. If it
+fails, each error maps to a row in `ATAS-API-VERIFICATION.md`.
 
 ## 5 · Which artifact, and where it goes
 
@@ -96,30 +111,50 @@ Get-Content .\OFT.Platform.runtimeconfig.json  | ConvertFrom-Json | % { $_.runti
 Get-Content .\OFT.PlatformX.runtimeconfig.json | ConvertFrom-Json | % { $_.runtimeOptions.tfm }   # ATAS X
 ```
 
-The `tfm` value selects the build. **Do not infer the runtime from the product
-version label.**
+The `tfm` value selects the build. A second, independent signal is the
+`TargetFrameworkAttribute` on the ATAS assemblies themselves, which the API probe
+prints. The two should agree; if they do not, stop and report it.
+
+**Do not infer the runtime from any version label.** Measured 2026-09-12:
+
+| Product | `ATAS.Indicators` identity | Actual assembly TFM | Product runtime |
+|---|---|---|---|
+| Classic | `8.0.14.399` | `.NETCoreApp,Version=v10.0` | `net10.0` |
+| ATAS X | `8.0.15.643` | `.NETCoreApp,Version=v10.0` | `net10.0` |
+
+An `8.0.x` assembly version on a net10 runtime is the exact trap this rule exists
+for.
+
+**Re-measure every time.** Classic measured `.NETCoreApp,Version=v8.0` at
+2026-09-12T01:35Z and `.NETCoreApp,Version=v10.0` the same afternoon, on the same
+machine — ATAS updated underneath the validation. A runtime reading is only valid
+for the install as it stands at the moment you take it.
 
 ### 5.2 · The build matrix
 
-| Runtime (`tfm`) | Artifact directory | Classic | ATAS X |
-|---|---|---|---|
-| `net8.0` | `bin\Release\net8.0-windows\` | compile target verified locally | compile target verified locally |
-| `net10.0` | `bin\Release\net10.0-windows\` | **structurally supported, NOT verified** | **structurally supported, NOT verified** |
+| Runtime (`tfm`) | Artifact directory | Build selector | Classic | ATAS X |
+|---|---|---|---|---|
+| `net10.0` | `bin\Release\net10.0-windows\` | **default** | **compile-verified against real assemblies** | **compile-verified against real assemblies** |
+| `net8.0` | `bin\Release\net8.0-windows\` | `-p:AtasTargetFrameworks=net8.0-windows` | compatibility only | compatibility only |
 
 Precise status, because the distinction matters:
 
-- **Compile-verified (stub):** the adapter compiles against the measured API surface
-  for `net8.0-windows`. Verified on Linux against the stub, not yet by MSBuild on
-  Windows against the real assemblies.
-- **Structurally supported:** the project multitargets on request and the code has
-  no runtime-version-specific constructs, but `net10.0-windows` has **never been
-  compiled** — no .NET 10 SDK and no net10 ATAS reference set was available. Do not
-  report it as working.
-- **Runtime-verified:** nothing yet, on either product. That is what the next Cowork
+- **`net10.0-windows` is compile-verified against the real thing.** On the Windows
+  machine, SDK 10.0.400, this csproj's exact reference set, `net10.0-windows`
+  semantics and `-warnaserror`: Core EXIT=0, adapter vs Classic EXIT=0 / 0 warnings,
+  adapter vs ATAS X EXIT=0 / 0 warnings. This supersedes the earlier
+  *structurally supported, NOT compile verified* classification.
+- **`net8.0-windows` is retained for older, net8-based ATAS installations only.**
+  It is **not** claimed to work with either currently installed product, and it
+  demonstrably does not: against these net10 assemblies it fails **CS1705**. It is
+  kept because net8 installs exist — Classic on this machine was one, hours before
+  the measurement above.
+- **Runtime-verified:** still nothing, on either product. Compiling against an
+  assembly is not loading inside the host that owns it. That is what the GUI Replay
   validation is for.
 
-To produce the net10 artifact on a machine with a .NET 10 SDK (note the escaped
-semicolon — MSBuild splits an unescaped one into a second switch):
+To build both artifacts at once, escape the semicolon — MSBuild splits an
+unescaped one into a second switch and fails `MSB1006`:
 
 ```powershell
 dotnet build .\src\NFMarketReplayRecorder.ATAS\NFMarketReplayRecorder.ATAS.csproj `
@@ -127,6 +162,10 @@ dotnet build .\src\NFMarketReplayRecorder.ATAS\NFMarketReplayRecorder.ATAS.cspro
   -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform" `
   "-p:AtasTargetFrameworks=net8.0-windows%3Bnet10.0-windows"
 ```
+
+This only succeeds where SDKs and reference packs for **both** majors are present,
+and the net8 half will fail CS1705 against net10 ATAS references. Use the single
+default target unless you specifically need the compatibility artifact.
 
 ### 5.3 · The files
 

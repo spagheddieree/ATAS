@@ -272,7 +272,7 @@ observation.
 | Runtimeconfig path | `OFT.Platform.runtimeconfig.json` / `OFT.PlatformX.runtimeconfig.json` |
 | Actual `tfm` | from that file — **not** from the version label |
 | Installed ATAS assembly TFM | e.g. via the API probe |
-| Artifact selected | `net8.0-windows` or `net10.0-windows`, matching the `tfm` |
+| Artifact selected | matching the `tfm` — `net10.0-windows` is the default and is what both products currently need |
 | Install directory | `%APPDATA%\ATAS\Indicators` or `%APPDATA%\ATAS X\Indicators` |
 | Indicator discovered | appears as **NF Market Replay Recorder** |
 | Loaded without error | no assembly/initialization exception |
