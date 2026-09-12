@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The ATAS adapter.
+
+    Two build modes:
+
+    1. STUB MODE (the default, and what CI runs here)
+         dotnet build -c Release
+       Compiles against ApiStub/AtasApiAssumptions.cs, a written-down set of
+       ASSUMPTIONS about the ATAS API. This type-checks the adapter. It does NOT
+       validate the assumptions. See docs/ATAS-API-VERIFICATION.md.
+
+    2. REAL MODE (on a Windows machine with ATAS installed)
+         dotnet build -c Release -p:UseRealAtas=true -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform"
+       Excludes the stub and references the real assemblies. Compile errors here
+       are the assumptions being corrected; work through the doc above.
+  -->
+
+  <PropertyGroup>
+    <UseRealAtas Condition="'$(UseRealAtas)' == ''">false</UseRealAtas>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework Condition="'$(UseRealAtas)' == 'true'">net472</TargetFramework>
+    <TargetFramework Condition="'$(UseRealAtas)' != 'true'">netstandard2.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ReplayEventVerifier.ATAS</AssemblyName>
+    <RootNamespace>ReplayEventVerifier.ATAS</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Stub mode -->
+  <PropertyGroup Condition="'$(UseRealAtas)' != 'true'">
+    <DefineConstants>$(DefineConstants);STUB_ATAS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Real mode: the stub must not exist in the compilation at all -->
+  <ItemGroup Condition="'$(UseRealAtas)' == 'true'">
+    <Compile Remove="ApiStub/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseRealAtas)' == 'true'">
+    <!-- Framework assembly under net472; supplies Display/Range attributes. -->
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseRealAtas)' == 'true'">
+    <Reference Include="ATAS.Indicators">
+      <HintPath>$(AtasInstallDir)\ATAS.Indicators.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ATAS.DataFeedsCore">
+      <HintPath>$(AtasInstallDir)\ATAS.DataFeedsCore.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Utils.Common">
+      <HintPath>$(AtasInstallDir)\Utils.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="OFT.Attributes">
+      <HintPath>$(AtasInstallDir)\OFT.Attributes.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ReplayEventVerifier.Core/ReplayEventVerifier.Core.csproj" />
+  </ItemGroup>
+
+</Project>
