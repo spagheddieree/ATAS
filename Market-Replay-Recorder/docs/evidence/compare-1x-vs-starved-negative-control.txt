@@ -1,0 +1,35 @@
+VERDICT: DIVERGENT
+A = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r6-1x/events.jsonl
+B = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r6-starved/events.jsonl
+
+events A            : 180599
+events B            : 66536
+differing lines     : 179779
+strict match        : no
+ts-bucket match     : no
+shorter is prefix   : no
+
+per-kind counts (A | B):
+  depth         135244 |      49371   <-- DIFFERS
+  snapshot         599 |        541   <-- DIFFERS
+  trade          44756 |      16624   <-- DIFFERS
+
+first divergence at canonical line index 820:
+  A: {"kind":"trade","src_ts":"2026-03-10T14:30:02.7297316Z","price":20000.5,"volume":24,"aggressor":"buy"}
+  B: {"kind":"depth","src_ts":"2026-03-10T14:30:02.7327328Z","side":"ask","price":20001,"volume":97}
+
+source timestamps whose event sets differ (first 10):
+  2026-03-10T14:30:02.7297316Z
+  2026-03-10T14:30:03.5637331Z
+  2026-03-10T14:30:03.5757588Z
+  2026-03-10T14:30:03.5785841Z
+  2026-03-10T14:30:03.5853916Z
+  2026-03-10T14:30:03.5901086Z
+  2026-03-10T14:30:03.5944186Z
+  2026-03-10T14:30:03.5968289Z
+  2026-03-10T14:30:03.6015320Z
+  2026-03-10T14:30:03.6039628Z
+
+interpretation:
+  The captures hold different events. Replay speed changes what the feed
+  delivers, so an accelerated replay is not a faithful substitute.
