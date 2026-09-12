@@ -143,6 +143,63 @@ then merely **count**, writing `atas-callback-diagnostics.json` at shutdown. The
 runtime experiment reads those counts and settles the question by measurement rather
 than the adapter guessing. See `GUI-REPLAY-RUNBOOK.md` §9D.
 
+## 4.4 · Two defects the metadata report did not prevent
+
+The first compile against the real assemblies failed twice over. Both are worth
+recording because both were *findable* in the evidence and were missed.
+
+### Duplicate enum declarations — CS0104
+
+ATAS declares **two** independent public enums named `MarketDataType` and **two**
+named `TradeDirection`: one pair in `ATAS.DataFeedsCore`, one in `ATAS.Indicators`.
+Not type forwards — separate declarations. Importing both namespaces and using the
+bare name is ambiguous, and the adapter did exactly that at six call sites.
+
+`ATAS.Indicators.MarketDataArg` types its `DataType` and `Direction` properties as
+the **`ATAS.Indicators`** pair, so that is the family to bind to. The members are
+numerically identical across both families (`Bid=0/Ask=1/Trade=2`,
+`Between=0/Buy=1/Sell=2`), which is precisely why this hid: the wrong binding would
+have *behaved* correctly. Only the type identity differs, so only a compiler could
+catch it.
+
+**Why the report missed it.** `Signatures.TypeName()` printed `t.Name`, so §2 read
+`public MarketDataType DataType` — a name that cannot say which of two declarations
+it means. The collision was visible elsewhere in the same report (line 187 and line
+205 both list a `MarketDataType`), but nothing connected them.
+
+Fixed in three places, so the same class of defect cannot recur silently:
+
+1. **Probe** — a new §0.2 enumerates every simple name declared by more than one
+   assembly, and any such name is printed namespace-qualified everywhere else in
+   the report.
+2. **Stub** — both enum pairs are now declared, so unqualified use is CS0104 in the
+   *local* build too. Verified by deliberately reintroducing the defect on a scratch
+   copy and confirming the identical CS0104 pair.
+3. **Adapter** — binds through explicit aliases; `ATAS.DataFeedsCore` is no longer
+   imported, since nothing here needs a type from it.
+
+### Wrong real-mode target framework
+
+The project targeted `net472` in real mode. The installed ATAS assemblies are
+**`.NETCoreApp,Version=v8.0`**, so that build could not legally consume them:
+CS0012 (`System.Runtime 8.0.0.0` missing), CS0115 (no suitable method to override),
+CS0534 (abstract member unresolved).
+
+Real mode now targets **`net8.0-windows`** with `UseWPF`. The Windows-specific TFM
+is chosen on a measured reference requirement, not because ATAS is a Windows app:
+resolving `ATAS.Indicators` metadata requires `PresentationCore`,
+`PresentationFramework`, `WindowsBase` and `System.Xaml` — the same requirement that
+broke the API probe — and `Indicator` carries WPF types in its own member
+signatures while this adapter derives from it. It is a deliberate superset: a
+missing WPF reference fails the build, an unnecessary one does not. If a real
+Windows build shows plain `net8.0` resolves everything, it can be narrowed.
+
+The explicit `System.ComponentModel.DataAnnotations` reference is gone — it existed
+only because of `net472`; under .NET 8 those attributes are in the shared framework.
+
+`Core` stays on `netstandard2.0`, which .NET 8 consumes fine. Only its stale comment
+calling ATAS ".NET Framework based" was corrected.
+
 ## 5 · What is still UNKNOWN
 
 | Question | Why it matters | Settled by |

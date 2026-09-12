@@ -1,4 +1,4 @@
-Captured 2026-09-12T07:19:55Z
+Captured 2026-09-12T08:11:00Z
 
     NFMarketReplayRecorder.Tests.ApiProbeResolverTests.A_malformed_core_runtime_path_yields_null_rather_than_throwing
     NFMarketReplayRecorder.Tests.ApiProbeResolverTests.A_missing_windows_desktop_root_yields_null_rather_than_throwing
@@ -13,6 +13,25 @@ Captured 2026-09-12T07:19:55Z
     NFMarketReplayRecorder.Tests.ApiProbeResolverTests.The_resolver_set_includes_the_atas_directory_and_the_core_runtime
     NFMarketReplayRecorder.Tests.ApiProbeResolverTests.The_windows_desktop_root_is_derived_as_a_sibling_of_the_core_runtime
     NFMarketReplayRecorder.Tests.ApiProbeResolverTests.The_wpf_assemblies_that_caused_the_failure_are_the_ones_checked_for
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.A_trade_data_type_is_not_a_book_side
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Aggressor_mapping_is_unchanged_by_the_disambiguation(member: "Between", expected: "unknown")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Aggressor_mapping_is_unchanged_by_the_disambiguation(member: "Buy", expected: "buy")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Aggressor_mapping_is_unchanged_by_the_disambiguation(member: "Sell", expected: "sell")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Book_side_mapping_is_unchanged_by_the_disambiguation(member: "Ask", expected: "ask")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Book_side_mapping_is_unchanged_by_the_disambiguation(member: "Bid", expected: "bid")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Both_declarations_of_each_colliding_enum_exist(fullName: "ATAS.DataFeedsCore.MarketDataType")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Both_declarations_of_each_colliding_enum_exist(fullName: "ATAS.DataFeedsCore.TradeDirection")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Both_declarations_of_each_colliding_enum_exist(fullName: "ATAS.Indicators.MarketDataType")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.Both_declarations_of_each_colliding_enum_exist(fullName: "ATAS.Indicators.TradeDirection")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.MarketDataArg_DataType_is_the_ATAS_Indicators_enum
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.MarketDataArg_Direction_is_the_ATAS_Indicators_enum
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.MarketDataType_members_match_the_measured_values(fullName: "ATAS.DataFeedsCore.MarketDataType")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.MarketDataType_members_match_the_measured_values(fullName: "ATAS.Indicators.MarketDataType")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.The_adapter_binds_the_ATAS_Indicators_enum_families
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.The_colliding_enums_are_genuinely_distinct_types
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.The_two_families_are_numerically_identical_which_is_why_the_bug_hid
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.TradeDirection_members_match_the_measured_values(fullName: "ATAS.DataFeedsCore.TradeDirection")
+    NFMarketReplayRecorder.Tests.AtasStubParityTests.TradeDirection_members_match_the_measured_values(fullName: "ATAS.Indicators.TradeDirection")
     NFMarketReplayRecorder.Tests.DeterministicComparisonTests.A_changed_value_is_reported_at_its_exact_index
     NFMarketReplayRecorder.Tests.DeterministicComparisonTests.A_dropped_event_is_reported_as_divergent
     NFMarketReplayRecorder.Tests.DeterministicComparisonTests.A_duplicated_event_breaks_the_bucket_test

@@ -116,6 +116,8 @@ namespace NFMarketReplayRecorder.ApiProbe
                 return 2;
             }
 
+            ReportDuplicateTypeNames();
+
             // Each section is isolated. The original failure mode was one exception
             // discarding the entire report; a section that cannot be produced now
             // says so in place and the rest of the report still reaches the user.
@@ -154,6 +156,68 @@ namespace NFMarketReplayRecorder.ApiProbe
                 Line("The remaining sections are unaffected and appear below.");
                 Blank();
             }
+        }
+
+        /// <summary>
+        /// Finds simple type names declared by more than one loaded assembly, tells
+        /// <see cref="Signatures"/> to qualify them, and reports the collisions.
+        /// </summary>
+        /// <remarks>
+        /// A duplicate public type name is not a curiosity — it is a compile-time
+        /// trap. Importing both namespaces and using the bare name is CS0104, and
+        /// which declaration a member actually uses cannot be read off an
+        /// unqualified signature. This section exists so the reader sees the
+        /// collision before writing any binding against it.
+        /// </remarks>
+        private void ReportDuplicateTypeNames()
+        {
+            var byName = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+            foreach (var t in AllTypes())
+            {
+                if (!t.IsPublic && !t.IsNestedPublic) continue;
+                if (t.FullName == null) continue;
+
+                List<string> owners;
+                if (!byName.TryGetValue(t.Name, out owners))
+                {
+                    owners = new List<string>();
+                    byName.Add(t.Name, owners);
+                }
+                if (!owners.Contains(t.FullName)) owners.Add(t.FullName);
+            }
+
+            var duplicates = new List<KeyValuePair<string, List<string>>>();
+            foreach (var kv in byName)
+            {
+                if (kv.Value.Count < 2) continue;
+                duplicates.Add(kv);
+                Signatures.AmbiguousSimpleNames.Add(kv.Key);
+            }
+
+            H2("0.2 · Duplicate public type names (CS0104 traps)");
+
+            if (duplicates.Count == 0)
+            {
+                Line("None. Every public simple name is unique across the loaded assemblies.");
+                Blank();
+                return;
+            }
+
+            Line("These simple names are declared by more than one assembly. Importing two of");
+            Line("the owning namespaces and using the bare name is **CS0104 ambiguous**, so every");
+            Line("signature below that mentions one of these names is printed fully qualified.");
+            Blank();
+            Line("```");
+            duplicates.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+            foreach (var kv in duplicates)
+            {
+                var owners = new List<string>(kv.Value);
+                owners.Sort(StringComparer.Ordinal);
+                _md.AppendLine(kv.Key + "  ->  " + string.Join("  |  ", owners));
+            }
+            Line("```");
+            Blank();
         }
 
         // ------------------------------------------------------------------ 1

@@ -1,8 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- netstandard2.0 so the assembly loads in the ATAS runtime (.NET Framework
-         based today, .NET based in ATAS X) without a second build. -->
+    <!-- netstandard2.0 so this assembly loads in the ATAS runtime without a
+         second build. The installed ATAS is .NETCoreApp 8.0 (measured on the real
+         assemblies, correcting an earlier note here that called it .NET Framework
+         based); netstandard2.0 is consumable from .NET 8, so the target is still
+         right and is deliberately left alone. It also keeps Core usable from the
+         netstandard stub build and from any future ATAS runtime. -->
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>9.0</LangVersion>
     <Nullable>disable</Nullable>

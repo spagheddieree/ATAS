@@ -19,6 +19,13 @@
     <ProjectReference Include="../../src/NFMarketReplayRecorder.Core/NFMarketReplayRecorder.Core.csproj" />
     <ProjectReference Include="../../src/NFMarketReplayRecorder.Harness/NFMarketReplayRecorder.Harness.csproj" />
     <ProjectReference Include="../../tools/NFMarketReplayRecorder.ApiProbe/NFMarketReplayRecorder.ApiProbe.csproj" />
+
+    <!--
+      The ATAS adapter, in STUB mode. Referenced so the stub's fidelity to the
+      measured ATAS API is guarded by tests rather than by review: the duplicate
+      enum declarations that broke the first real compile are asserted here.
+    -->
+    <ProjectReference Include="../../src/NFMarketReplayRecorder.ATAS/NFMarketReplayRecorder.ATAS.csproj" />
   </ItemGroup>
 
 </Project>

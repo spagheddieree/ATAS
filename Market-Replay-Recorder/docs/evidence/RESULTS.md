@@ -31,11 +31,11 @@ $ dotnet build NFMarketReplayRecorder.sln -c Release
 Build succeeded.  0 Warning(s)  0 Error(s)
 
 $ dotnet test NFMarketReplayRecorder.sln -c Release
-Passed!  - Failed: 0, Passed: 145, Skipped: 0, Total: 145
+Passed!  - Failed: 0, Passed: 164, Skipped: 0, Total: 164
 ```
 
 All four projects build with `TreatWarningsAsErrors` and produce zero warnings.
-Files: `build.txt`, `test-run.txt`, `test-inventory.txt` (all 145 test names).
+Files: `build.txt`, `test-run.txt`, `test-inventory.txt` (all 164 test names).
 
 Coverage against the required areas:
 
@@ -50,7 +50,13 @@ Coverage against the required areas:
 | Provenance / source class / mode / run id / integrity | `ProvenanceContractTests.cs` | 37 |
 | Instrument identity and non-merge rules | `InstrumentIdentityTests.cs` | 22 |
 | API probe resolver (WindowsDesktop repair) | `ApiProbeResolverTests.cs` | 13 |
-| **Total** | | **145** |
+| ATAS stub parity / enum type identity | `AtasStubParityTests.cs` | 19 |
+| **Total** | | **164** |
+
+The 19 new cases guard the defect that failed the first real-ATAS compile: ATAS
+declares two independent enums named `MarketDataType` and two named
+`TradeDirection`, and the adapter must bind the `ATAS.Indicators` pair. See
+`stub-parity-cs0104-test.md`.
 
 Counts are as enumerated by `dotnet test --list-tests`, so a `[Theory]` contributes one
 entry per case.
@@ -124,18 +130,18 @@ unpaced speed, queue reduced from 262 144 to **512** to force overflow.
 
 | Invariant | Value | Runs |
 |---|---|---|
-| Verdict | **DIVERGENT**, exit 4 | 6 / 6 |
-| `capture_complete` | **false** | 6 / 6 |
-| `written + dropped` | **180 599** — every event accounted for | 6 / 6 |
-| Fault code | `queue_overflow`, `capacity=512` | 6 / 6 |
-| Fault's first loss and the comparer's first divergence | **identify the same event** (`recorder_seq` N, canonical index N-1) | 6 / 6 |
+| Verdict | **DIVERGENT**, exit 4 | 7 / 7 |
+| `capture_complete` | **false** | 7 / 7 |
+| `written + dropped` | **180 599** — every event accounted for | 7 / 7 |
+| Fault code | `queue_overflow`, `capacity=512` | 7 / 7 |
+| Fault's first loss and the comparer's first divergence | **identify the same event** (`recorder_seq` N, canonical index N-1) | 7 / 7 |
 
 The last row is the point. The recorder's fault log and the comparer share no code and
 no inputs — the comparer never sees the fault log, only the two event files — yet they
 identify the same event as the first loss, every time. The integrity accounting and the
 comparison corroborate each other rather than sharing a common failure mode.
 
-The *value* of N is not itself an invariant and has moved (514, then 837, 916 and 821 as the capture
+The *value* of N is not itself an invariant and has moved (514, then 837, 916, 821 and 822 as the capture
 header, the extra raw fields and host scheduling shifted the producer/writer race).
 What reproduces is the agreement between two independent mechanisms, which is what the
 control is testing.
@@ -150,6 +156,7 @@ control is testing.
 | rev-2 hardening | 54 094 | 126 505 |
 | rev-3 measured binding | 54 616 | 125 983 |
 | post-rename (Market Replay Recorder) | 66 536 | 114 063 |
+| post real-ATAS build repair | 62 629 | 117 970 |
 
 Which events survive an overflow depends on how the writer thread is scheduled against
 the producer, so the split moves run to run. The *onset* of loss is deterministic — a
@@ -205,6 +212,10 @@ events A : 180599   events B : 180599   differing lines : 0
 Both manifests report `"schema_version":"rev-3"`. Captures written under the old name
 remain fully readable, and the schema was deliberately **not** bumped: a display name
 changing is not a reason to break stored data.
+
+Re-checked after the real-ATAS build repair (target framework and enum binding), which
+touched project configuration and the adapter but no serialized surface: a capture
+written before that repair still compares `IDENTICAL`, both at `rev-3`.
 
 ---
 

@@ -78,13 +78,34 @@ namespace System.ComponentModel.DataAnnotations
     }
 }
 
+// ===========================================================================
+//  DUPLICATE TYPE NAMES ARE MODELLED ON PURPOSE.
+//
+//  The real ATAS ships TWO independent public enums named MarketDataType and
+//  TWO named TradeDirection -- one pair in ATAS.DataFeedsCore, one in
+//  ATAS.Indicators. They are separate declarations, not type forwards.
+//
+//  An earlier version of this stub declared only the DataFeedsCore pair, so the
+//  stub build happily accepted unqualified `MarketDataType` / `TradeDirection`
+//  in the adapter. The first compile against the real assemblies then failed
+//  with CS0104 (ambiguous reference) at six call sites. The stub was more
+//  permissive than reality and hid a real defect -- the same class of mistake
+//  the [Display] AttributeUsage pinning was added to prevent.
+//
+//  Both pairs are therefore declared here. Any unqualified use in the adapter
+//  is now CS0104 in the LOCAL stub build too, so this collision cannot silently
+//  reappear.
+// ===========================================================================
 namespace ATAS.DataFeedsCore
 {
     /// <summary>
-    /// MEASURED (report section 3): <c>ATAS.DataFeedsCore.MarketDataType</c>,
-    /// underlying Int32. Note both the namespace and the ordinal values -- the
-    /// earlier assumption placed this in ATAS.Indicators with Trade first.
+    /// MEASURED (report section 3, line 187):
+    /// <c>ATAS.DataFeedsCore.MarketDataType</c>, underlying Int32.
     /// </summary>
+    /// <remarks>
+    /// NOT the enum <see cref="ATAS.Indicators.MarketDataArg.DataType"/> uses.
+    /// Declared so the collision exists in the stub build.
+    /// </remarks>
     public enum MarketDataType
     {
         Bid = 0,
@@ -93,9 +114,13 @@ namespace ATAS.DataFeedsCore
     }
 
     /// <summary>
-    /// MEASURED (report section 3): <c>ATAS.DataFeedsCore.TradeDirection</c>,
-    /// underlying Int32.
+    /// MEASURED (report section 3, line 176):
+    /// <c>ATAS.DataFeedsCore.TradeDirection</c>, underlying Int32.
     /// </summary>
+    /// <remarks>
+    /// NOT the enum <see cref="ATAS.Indicators.MarketDataArg.Direction"/> uses.
+    /// Declared so the collision exists in the stub build.
+    /// </remarks>
     public enum TradeDirection
     {
         Between = 0,
@@ -106,7 +131,41 @@ namespace ATAS.DataFeedsCore
 
 namespace ATAS.Indicators
 {
-    using ATAS.DataFeedsCore;
+    /// <summary>
+    /// MEASURED (report section 3, line 205): <c>ATAS.Indicators.MarketDataType</c>
+    /// -- a SECOND, independent declaration alongside the DataFeedsCore one.
+    /// </summary>
+    /// <remarks>
+    /// <b>This is the enum <see cref="MarketDataArg.DataType"/> is typed as</b>, so
+    /// this is the family the adapter must bind to. Members are numerically
+    /// identical to the DataFeedsCore enum, which is precisely why the mistake was
+    /// invisible until a real compile: the behaviour would have been right, the
+    /// types are not interchangeable.
+    /// </remarks>
+    public enum MarketDataType
+    {
+        Bid = 0,
+        Ask = 1,
+        Trade = 2,
+    }
+
+    /// <summary>
+    /// MEASURED: <c>ATAS.Indicators.TradeDirection</c>, the second declaration
+    /// alongside <c>ATAS.DataFeedsCore.TradeDirection</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>This is the enum <see cref="MarketDataArg.Direction"/> is typed as.</b>
+    /// Established by the real compile: CS0104 is only emitted when a name is
+    /// genuinely ambiguous between two imported namespaces, and binding these call
+    /// sites to the ATAS.Indicators family is what made the adapter compile against
+    /// the real assemblies.
+    /// </remarks>
+    public enum TradeDirection
+    {
+        Between = 0,
+        Buy = 1,
+        Sell = 2,
+    }
 
     /// <summary>MEASURED (section 1): layer selector passed to SubscribeToDrawingEvents.</summary>
     [Flags]

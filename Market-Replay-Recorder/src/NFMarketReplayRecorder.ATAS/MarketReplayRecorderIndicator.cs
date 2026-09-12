@@ -4,8 +4,24 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 
-using ATAS.DataFeedsCore;
 using ATAS.Indicators;
+
+// ATAS.Indicators and ATAS.DataFeedsCore BOTH declare public enums named
+// TradeDirection and MarketDataType. They are independent declarations, not type
+// forwards, so an unqualified reference with both namespaces imported is CS0104
+// ambiguous -- which is exactly how the first real-ATAS compile failed.
+//
+// The payload settles which family is correct: ATAS.Indicators.MarketDataArg
+// declares its Direction and DataType properties as the ATAS.Indicators types, so
+// the adapter binds to those. The two families' members happen to be numerically
+// identical (Between=0/Buy=1/Sell=2 and Bid=0/Ask=1/Trade=2), so this is a
+// compile-time type-identity fix and changes no mapping behaviour.
+//
+// ATAS.DataFeedsCore is deliberately NOT imported: nothing in this adapter needs a
+// type from it, and leaving it out removes the ambiguity at its source. If a real
+// DataFeedsCore type is ever required, import it and keep these aliases.
+using AtasTradeDirection = ATAS.Indicators.TradeDirection;
+using AtasMarketDataType = ATAS.Indicators.MarketDataType;
 
 using NFMarketReplayRecorder.Core;
 
@@ -354,22 +370,22 @@ namespace NFMarketReplayRecorder.ATAS
         /// price: inferring it would be a derived feature, and a wrong inference in
         /// a data-fidelity tool is worse than an honest gap.
         /// </summary>
-        private static string MapAggressor(TradeDirection direction)
+        private static string MapAggressor(AtasTradeDirection direction)
         {
             switch (direction)
             {
-                case TradeDirection.Buy: return Aggressor.Buy;
-                case TradeDirection.Sell: return Aggressor.Sell;
+                case AtasTradeDirection.Buy: return Aggressor.Buy;
+                case AtasTradeDirection.Sell: return Aggressor.Sell;
                 default: return Aggressor.Unknown;
             }
         }
 
-        private static string MapSide(MarketDataType type)
+        private static string MapSide(AtasMarketDataType type)
         {
             switch (type)
             {
-                case MarketDataType.Bid: return Side.Bid;
-                case MarketDataType.Ask: return Side.Ask;
+                case AtasMarketDataType.Bid: return Side.Bid;
+                case AtasMarketDataType.Ask: return Side.Ask;
                 default: return null;
             }
         }

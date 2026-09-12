@@ -11,7 +11,7 @@ requires copying framework DLLs anywhere.
 |---|---|---|
 | ATAS installed | supplies the assemblies to build against | `C:\Program Files (x86)\ATAS Platform\ATAS.Indicators.dll` exists |
 | .NET SDK 8.x | builds the solution and the probe | `dotnet --version` |
-| .NET **Desktop** Runtime 8.x | ATAS assemblies reference WPF types; the probe resolves against it | `dotnet --list-runtimes` shows `Microsoft.WindowsDesktop.App 8.x` |
+| .NET **Desktop** Runtime 8.x | ATAS assemblies reference WPF types; both the probe and the `net8.0-windows` adapter build need it | `dotnet --list-runtimes` shows `Microsoft.WindowsDesktop.App 8.x` |
 
 If `Microsoft.WindowsDesktop.App` is missing, install the .NET Desktop Runtime from
 Microsoft. The probe discovers it automatically — **do not** copy
@@ -60,14 +60,19 @@ dotnet build src\NFMarketReplayRecorder.ATAS\NFMarketReplayRecorder.ATAS.csproj 
   -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform"
 ```
 
-This is the step that has never been executed. The adapter is written against
-measured signatures, so it should compile; if it does not, each error maps to a row in
-`docs/ATAS-API-VERIFICATION.md` and indicates either a transcription slip or a
-different ATAS version.
+The first attempt at this step failed and the two defects it exposed are fixed:
+the project targeted `net472` while the installed ATAS assemblies are .NETCoreApp
+8.0, and the adapter used enum names that are ambiguous between `ATAS.Indicators`
+and `ATAS.DataFeedsCore`. See `docs/ATAS-API-VERIFICATION.md` §4.4.
+
+**This build has still not been executed successfully on Windows.** The fixes are
+verified locally — the stub build now reproduces the exact CS0104 pair when the
+defect is reintroduced — but a diagnostic compile is not an MSBuild run on the real
+machine. If it fails, each error maps to a row in `ATAS-API-VERIFICATION.md`.
 
 ## 5 · The install artifact
 
-Exactly **two** files, from `src\NFMarketReplayRecorder.ATAS\bin\Release\net472\`:
+Exactly **two** files, from `src\NFMarketReplayRecorder.ATAS\bin\Release\net8.0-windows\`:
 
 | File | Role |
 |---|---|

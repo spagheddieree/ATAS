@@ -18,9 +18,34 @@ namespace NFMarketReplayRecorder.ApiProbe
     /// </remarks>
     public static class Signatures
     {
+        /// <summary>
+        /// Simple type names that more than one loaded assembly declares.
+        /// </summary>
+        /// <remarks>
+        /// <para>Populated by the probe once assemblies are loaded. Names in this set
+        /// are rendered namespace-qualified, because a bare name is genuinely
+        /// ambiguous and printing it unqualified is how a report hides a real
+        /// defect.</para>
+        /// <para>This is not hypothetical. The first report printed
+        /// <c>MarketDataType DataType</c> and <c>TradeDirection Direction</c> on
+        /// MarketDataArg. Both names are declared independently in BOTH
+        /// ATAS.DataFeedsCore and ATAS.Indicators, so those lines could not say
+        /// which enum family the adapter had to bind to — and the adapter bound to
+        /// the wrong one, failing the first real compile with CS0104. Qualifying
+        /// ambiguous names makes that visible in the report instead.</para>
+        /// <para>A mutable static is acceptable here: the probe is a
+        /// single-threaded, single-run diagnostic tool.</para>
+        /// </remarks>
+        public static HashSet<string> AmbiguousSimpleNames = new HashSet<string>(StringComparer.Ordinal);
+
         public static string TypeName(Type t)
         {
             if (t == null) return "?";
+
+            // Qualify anything whose simple name is declared more than once.
+            if (!t.IsGenericType && t.FullName != null && AmbiguousSimpleNames.Contains(t.Name))
+                return t.FullName;
+
             if (t.IsGenericType)
             {
                 var sb = new StringBuilder();
