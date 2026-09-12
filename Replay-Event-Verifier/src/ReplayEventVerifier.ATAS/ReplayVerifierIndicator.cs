@@ -35,9 +35,10 @@ namespace ReplayEventVerifier.ATAS
     /// anything that can block. All writing happens on the recorder's own
     /// background thread.</para>
     /// </remarks>
+    // [DisplayName] only: the framework's [Display] does not target a class, and
+    // the stub's AttributeUsage is pinned to the real one so that stays enforced
+    // in stub builds too.
     [DisplayName("Replay Event Verifier")]
-    [Display(Name = "Replay Event Verifier",
-             Description = "Records raw trades, depth changes and periodic DOM snapshots to disk. No trading logic.")]
     public class ReplayVerifierIndicator : Indicator, IDomSource
     {
         private EventRecorder _recorder;

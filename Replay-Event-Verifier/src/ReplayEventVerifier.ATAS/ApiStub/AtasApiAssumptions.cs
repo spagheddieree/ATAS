@@ -43,7 +43,11 @@ using System.Collections.Generic;
 // ---------------------------------------------------------------------------
 namespace System.ComponentModel.DataAnnotations
 {
-    [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
+    // AttributeUsage is copied from the real framework attribute, deliberately. A
+    // permissive stub would let the adapter apply [Display] where the real build
+    // rejects it -- which is exactly the error this pinning caught.
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field
+                    | AttributeTargets.Parameter, AllowMultiple = false)]
     public sealed class DisplayAttribute : Attribute
     {
         public string Name { get; set; }

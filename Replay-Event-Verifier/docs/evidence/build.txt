@@ -1,16 +1,16 @@
-Captured 2026-09-12T00:11:56Z on Linux 6.18.44-fc-v24 x86_64
+Captured 2026-09-12T00:14:53Z on Linux 6.18.44-fc-v24 x86_64
 dotnet 8.0.131
 
 $ dotnet build ReplayEventVerifier.sln -c Release
-  Determining projects to restore...
-  All projects are up-to-date for restore.
+  Restored /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.ATAS/ReplayEventVerifier.ATAS.csproj (in 413 ms).
+  3 of 4 projects are up-to-date for restore.
   ReplayEventVerifier.Core -> /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.Core/bin/Release/netstandard2.0/ReplayEventVerifier.Core.dll
-  ReplayEventVerifier.ATAS -> /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.ATAS/bin/Release/netstandard2.0/ReplayEventVerifier.ATAS.dll
   ReplayEventVerifier.Harness -> /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.Harness/bin/Release/net8.0/replay-verifier.dll
+  ReplayEventVerifier.ATAS -> /home/user/atas/Replay-Event-Verifier/src/ReplayEventVerifier.ATAS/bin/Release/netstandard2.0/ReplayEventVerifier.ATAS.dll
   ReplayEventVerifier.Tests -> /home/user/atas/Replay-Event-Verifier/tests/ReplayEventVerifier.Tests/bin/Release/net8.0/ReplayEventVerifier.Tests.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:06.29
+Time Elapsed 00:00:03.59

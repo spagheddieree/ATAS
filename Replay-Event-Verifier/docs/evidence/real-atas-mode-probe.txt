@@ -1,0 +1,22 @@
+Captured 2026-09-12T00:14:36Z
+
+Probe: build the adapter in REAL-ATAS mode with no ATAS assemblies present.
+Purpose: confirm the stub is not masking any error other than the genuinely
+absent ATAS types, i.e. that every remaining failure is an SDK-availability
+problem rather than a defect in the adapter source.
+
+$ dotnet build src/ReplayEventVerifier.ATAS/ReplayEventVerifier.ATAS.csproj -c Release \
+    -p:UseRealAtas=true -p:AtasInstallDir=/nonexistent
+
+error codes:
+     14 error CS0246
+
+unresolved symbols (all are ATAS types from ATAS-API-VERIFICATION.md rows 1-6):
+      2 name 'ATAS' could not be found
+      2 name 'Indicator' could not be found
+      4 name 'MarketDataArg' could not be found
+      4 name 'MarketDataType' could not be found
+      2 name 'TradeDirection' could not be found
+
+CS0246 = type-or-namespace not found. No other error class appears, so the
+adapter has no attribute misuse, arity error or type error of its own.

@@ -1,4 +1,4 @@
-Captured 2026-09-12T00:12:03Z
+Captured 2026-09-12T00:14:57Z
 
 $ dotnet test ReplayEventVerifier.sln -c Release
   All projects are up-to-date for restore.
@@ -12,4 +12,4 @@ Copyright (c) Microsoft Corporation.  All rights reserved.
 Starting test execution, please wait...
 A total of 1 test files matched the specified pattern.
 
-Passed!  - Failed:     0, Passed:    73, Skipped:     0, Total:    73, Duration: 717 ms - ReplayEventVerifier.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:    73, Skipped:     0, Total:    73, Duration: 588 ms - ReplayEventVerifier.Tests.dll (net8.0)

@@ -70,6 +70,30 @@ Grouped by how likely the assumption is to be wrong.
 | 12 | `[DisplayName]`, `[Display]`, `[Range]` | Standard attributes drive the settings UI | Purely presentational. Delete them if ATAS uses its own attribute set. |
 | 13 | `EnableCustomDrawing`, `SubscribeToDrawingEvents(DrawingLayouts.None)`, `DenyToChangePanel` | Opt out of rendering | If these members do not exist, **just delete the three lines**. They are an optimisation, not a requirement — the indicator draws nothing either way. |
 
+## 3.4 · Why the stub is pinned to the real attribute shapes
+
+The stub already caught one real defect. `[Display]` was originally applied to the
+indicator **class**; the stub permitted it (`AttributeTargets.All`) while the real
+framework attribute targets only members, so a real build would have failed with
+CS0592. The stub's `AttributeUsage` is now copied from the framework attribute and the
+class-level `[Display]` is gone.
+
+The lesson generalises: **a stub that is more permissive than the real API hides
+errors.** If you tighten an assumption below to match reality, tighten the stub with
+it rather than only fixing the call site.
+
+A standing check that the stub is not masking anything else
+(`docs/evidence/real-atas-mode-probe.txt`):
+
+```bash
+dotnet build src/ReplayEventVerifier.ATAS/ReplayEventVerifier.ATAS.csproj -c Release \
+  -p:UseRealAtas=true -p:AtasInstallDir=/nonexistent
+```
+
+Every error must be **CS0246** (type or namespace not found) naming an ATAS type. Any
+other error code is a defect in the adapter source, not an SDK-availability problem,
+and should be fixed before anyone takes this to a Windows machine.
+
 ## 4 · Procedure
 
 ```powershell
