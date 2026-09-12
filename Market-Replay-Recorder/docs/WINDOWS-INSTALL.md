@@ -3,13 +3,19 @@
 Everything here is for the machine that has ATAS installed. Nothing in this document
 requires copying framework DLLs anywhere.
 
+**Two products, tested separately.** ATAS Classic and ATAS X are distinct
+installations with distinct directories and possibly distinct .NET runtimes. The
+recorder is built from one shared codebase and is expected to work on both, but
+**a pass on one is not evidence about the other** — each must be installed and
+validated on its own, and reported separately.
+
 ---
 
 ## 0 · Prerequisites
 
 | Need | Why | Check |
 |---|---|---|
-| ATAS installed | supplies the assemblies to build against | `C:\Program Files (x86)\ATAS Platform\ATAS.Indicators.dll` exists |
+| ATAS installed (Classic and/or X) | supplies the assemblies to build against | `ATAS.Indicators.dll` exists in the install directory |
 | .NET SDK 8.x | builds the solution and the probe | `dotnet --version` |
 | .NET **Desktop** Runtime 8.x | ATAS assemblies reference WPF types; both the probe and the `net8.0-windows` adapter build need it | `dotnet --list-runtimes` shows `Microsoft.WindowsDesktop.App 8.x` |
 
@@ -70,32 +76,102 @@ verified locally — the stub build now reproduces the exact CS0104 pair when th
 defect is reintroduced — but a diagnostic compile is not an MSBuild run on the real
 machine. If it fails, each error maps to a row in `ATAS-API-VERIFICATION.md`.
 
-## 5 · The install artifact
+## 5 · Which artifact, and where it goes
 
-Exactly **two** files, from `src\NFMarketReplayRecorder.ATAS\bin\Release\net8.0-windows\`:
+ATAS ships **two products**, and supported installations may run on **different
+.NET runtimes**. The indicator's target framework must match the runtime of the
+installation it is loaded into, so pick the artifact by measurement, not by the
+version number on the splash screen.
+
+### 5.1 · Detect the runtime — the authority is the runtimeconfig
+
+| Product | Runtime config file |
+|---|---|
+| ATAS **Classic** | `OFT.Platform.runtimeconfig.json` |
+| **ATAS X** | `OFT.PlatformX.runtimeconfig.json` |
+
+```powershell
+# in the installation directory of whichever product you are testing
+Get-Content .\OFT.Platform.runtimeconfig.json  | ConvertFrom-Json | % { $_.runtimeOptions.tfm }   # Classic
+Get-Content .\OFT.PlatformX.runtimeconfig.json | ConvertFrom-Json | % { $_.runtimeOptions.tfm }   # ATAS X
+```
+
+The `tfm` value selects the build. **Do not infer the runtime from the product
+version label.**
+
+### 5.2 · The build matrix
+
+| Runtime (`tfm`) | Artifact directory | Classic | ATAS X |
+|---|---|---|---|
+| `net8.0` | `bin\Release\net8.0-windows\` | compile target verified locally | compile target verified locally |
+| `net10.0` | `bin\Release\net10.0-windows\` | **structurally supported, NOT verified** | **structurally supported, NOT verified** |
+
+Precise status, because the distinction matters:
+
+- **Compile-verified (stub):** the adapter compiles against the measured API surface
+  for `net8.0-windows`. Verified on Linux against the stub, not yet by MSBuild on
+  Windows against the real assemblies.
+- **Structurally supported:** the project multitargets on request and the code has
+  no runtime-version-specific constructs, but `net10.0-windows` has **never been
+  compiled** — no .NET 10 SDK and no net10 ATAS reference set was available. Do not
+  report it as working.
+- **Runtime-verified:** nothing yet, on either product. That is what the next Cowork
+  validation is for.
+
+To produce the net10 artifact on a machine with a .NET 10 SDK (note the escaped
+semicolon — MSBuild splits an unescaped one into a second switch):
+
+```powershell
+dotnet build .\src\NFMarketReplayRecorder.ATAS\NFMarketReplayRecorder.ATAS.csproj `
+  -c Release -p:UseRealAtas=true `
+  -p:AtasInstallDir="C:\Program Files (x86)\ATAS Platform" `
+  "-p:AtasTargetFrameworks=net8.0-windows%3Bnet10.0-windows"
+```
+
+### 5.3 · The files
+
+Exactly **two**, from the directory matching the detected `tfm`:
 
 | File | Role |
 |---|---|
 | `NFMarketReplayRecorder.ATAS.dll` | the indicator ATAS loads |
-| `NFMarketReplayRecorder.Core.dll` | all recorder behaviour; the adapter is a thin shell over it |
+| `NFMarketReplayRecorder.Core.dll` | all recorder behaviour |
 
 **Both are required.** `Core` carries the queue, writer, scheduler, provenance and
-integrity logic; the adapter alone will not load.
+integrity logic; the adapter alone will not load. Nothing else ships — `Core` has
+zero package references by design.
 
-No other dependency ships: `Core` has zero package references by design, precisely so
-that nothing extra enters the ATAS process.
+The ATAS-referenced assemblies are **not** copied: they are referenced with
+`<Private>false</Private>` so the platform's own copies are used.
 
-Copy both into the ATAS indicators folder — typically:
+### 5.4 · Install directories
 
-```
-%USERPROFILE%\Documents\ATAS\Indicators
-```
+| Product | Directory |
+|---|---|
+| ATAS **Classic** | `%APPDATA%\ATAS\Indicators` — i.e. `C:\Users\<user>\AppData\Roaming\ATAS\Indicators` |
+| **ATAS X** | `%APPDATA%\ATAS X\Indicators` — i.e. `C:\Users\<user>\AppData\Roaming\ATAS X\Indicators` |
 
-Then restart ATAS. The indicator appears as **NF Market Replay Recorder**.
+> **Correction.** Earlier revisions of this document named
+> `%USERPROFILE%\Documents\ATAS\Indicators`. That was not verified against the
+> installed platform and should not be used unless the installation actually proves
+> it. Verify the directory exists before writing to it.
 
-> The ATAS-referenced assemblies (`ATAS.Indicators.dll` etc.) are **not** copied —
-> the project references them with `<Private>false</Private>` so the platform's own
-> copies are used at runtime.
+Where the platform offers an **"Add custom indicator"** workflow in its UI, prefer
+it — it puts the assembly where that installation expects it. The manual paths above
+are the fallback and the thing to verify against.
+
+**Load semantics differ between products.** Classic generally needs a restart after
+a DLL is placed. ATAS X may pick up a newly installed DLL without the same restart
+behaviour. Do not assume they behave identically; observe and record what actually
+happened.
+
+The indicator appears as **NF Market Replay Recorder** on both.
+
+### 5.5 · Do not cross-install
+
+An assembly built for one runtime dropped into an installation running the other
+will fail to load, and the failure can look like a code defect rather than a
+mismatch. Detect the `tfm` first (§5.1), then take the matching directory.
 
 ## 6 · Settings
 

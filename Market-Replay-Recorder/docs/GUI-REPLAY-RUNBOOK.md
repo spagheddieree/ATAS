@@ -248,3 +248,51 @@ and non-identical settings.
 - any `faults.jsonl` that is non-empty
 
 That is enough to settle A–E and to decide Recorder v0.1 acceptance.
+
+---
+
+## 11 · Dual-platform validation — Classic and ATAS X are separate results
+
+ATAS Classic and ATAS X are distinct installations. The recorder is one shared
+codebase and is *expected* to work on both, but expectation is not evidence:
+
+> **A pass on one product is not runtime validation of the other.** Report them
+> separately, always.
+
+Shared-code compatibility is an architectural claim (see the dependency audit in
+`docs/evidence/platform-dependency-audit.md`). Runtime support is a per-product
+observation.
+
+### Per product, before any Replay run
+
+| Record | How |
+|---|---|
+| Product | Classic or X |
+| Executable path | |
+| Runtimeconfig path | `OFT.Platform.runtimeconfig.json` / `OFT.PlatformX.runtimeconfig.json` |
+| Actual `tfm` | from that file — **not** from the version label |
+| Installed ATAS assembly TFM | e.g. via the API probe |
+| Artifact selected | `net8.0-windows` or `net10.0-windows`, matching the `tfm` |
+| Install directory | `%APPDATA%\ATAS\Indicators` or `%APPDATA%\ATAS X\Indicators` |
+| Indicator discovered | appears as **NF Market Replay Recorder** |
+| Loaded without error | no assembly/initialization exception |
+| Load semantics observed | restart required, or picked up live |
+| Replay available | does this product expose historical Replay at all |
+| Replay speed controls | which speeds are actually offered |
+
+### Then, per product, §9 A–E
+
+Run the five runtime questions independently on each product. Do not carry a finding
+across.
+
+### If the products disagree
+
+A capability present in one and absent in the other is a **finding, not a defect to
+paper over**. If ATAS X lacks a Replay capability Classic has, classify it:
+
+> **CODE COMPATIBLE / PLATFORM CAPABILITY NOT YET AVAILABLE**
+
+and report which capability is missing. Do **not** adjust the recorder's methodology
+to manufacture parity — the schema and capture semantics are deliberately common
+across both products, and bending them to make two platforms look alike would
+destroy the very comparison the recorder exists to support.

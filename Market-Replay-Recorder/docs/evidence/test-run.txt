@@ -1,4 +1,4 @@
-Captured 2026-09-12T08:10:26Z
+Captured 2026-09-12T08:15:57Z
 
 $ dotnet test MarketReplayRecorder.sln -c Release
 Copyright (c) Microsoft Corporation.  All rights reserved.

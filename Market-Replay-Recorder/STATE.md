@@ -5,7 +5,8 @@
 **Branch:** `claude/atas-replay-event-verifier-xlgebm`
 **Base:** `main` @ `37bb54d`
 **Date:** 2026-09-12
-**Work package:** Canonical rename to NF Market Replay Recorder
+**Work package:** Real ATAS build repair + dual-platform (Classic / ATAS X) architecture
+**Prior work package:** Canonical rename to NF Market Replay Recorder
 **Prior work package:** Real ATAS API Binding + Probe Repair
 **Prior work package:** Real ATAS API Binding Verification + Windows Integration Readiness
 
@@ -32,7 +33,7 @@ experiment finds.
 | Integrity fault detection (overflow, write failure, and six more) | **Done** |
 | Graceful shutdown and flushing | **Done** |
 | File outputs + manifest, no database | **Done** |
-| Automated tests | **Done** — 145/145 |
+| Automated tests | **Done** — 164/164 |
 | Provenance hardening: RAW vs NORMALIZED source, run id, acquisition mode, instrument identity, integrity state, field register (schema `rev-2`) | **Done** |
 | Dataset v0.1 acquisition contract + normalized-import seam spec | **Done (design only)** |
 | Crystal Ball Historical Import Adapter | **NOT implemented, by instruction** |
@@ -42,7 +43,12 @@ experiment finds.
 | `atas-api-probe` — reflection tool to close B-2 in one command | **Done, fixture-tested** |
 | Adapter bound to measured signatures (schema `rev-3`) | **Done** |
 | Probe WindowsDesktop resolver defect | **Repaired + tested** |
+| Real-ATAS build defects (net472 target, CS0104 enum ambiguity) | **Repaired** |
+| Dual-platform architecture (ATAS Classic + ATAS X) | **Done — multitarget, audited** |
+| `net8.0-windows` target | **Compile-verified against the stub; NOT yet built on Windows** |
+| `net10.0-windows` target | **Structurally supported — NOT VERIFIED** (no .NET 10 SDK, no net10 ATAS refs) |
 | Real ATAS build against actual assemblies | **NOT DONE — needs the Windows machine** |
+| ATAS X runtime support | **NOT VERIFIED** — code-surface audit only |
 | The real ATAS Replay experiment | **NOT RUN — blocked, no GUI** (B-1) |
 
 ## 2 · Blockers

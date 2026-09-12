@@ -1,10 +1,8 @@
-Captured 2026-09-12T08:10:24Z on Linux 6.18.44-fc-v24 x86_64
-dotnet 8.0.131
-post real-ATAS build repair (net8.0-windows target + enum disambiguation)
+Captured 2026-09-12T08:15:52Z on Linux 6.18.44-fc-v24 x86_64
+dotnet SDKs: 8.0.131 [/usr/lib/dotnet/sdk] 
+dual-platform (ATAS Classic + ATAS X) multitarget architecture
 
 $ dotnet build MarketReplayRecorder.sln -c Release
-  NFMarketReplayRecorder.ATAS -> /home/user/atas/Market-Replay-Recorder/src/NFMarketReplayRecorder.ATAS/bin/Release/netstandard2.0/NFMarketReplayRecorder.ATAS.dll
-  NFMarketReplayRecorder.Harness -> /home/user/atas/Market-Replay-Recorder/src/NFMarketReplayRecorder.Harness/bin/Release/net8.0/nf-replay-recorder.dll
   NFMarketReplayRecorder.ApiProbe -> /home/user/atas/Market-Replay-Recorder/tools/NFMarketReplayRecorder.ApiProbe/bin/Debug/net8.0/atas-api-probe.dll
   NFMarketReplayRecorder.Tests -> /home/user/atas/Market-Replay-Recorder/tests/NFMarketReplayRecorder.Tests/bin/Release/net8.0/NFMarketReplayRecorder.Tests.dll
 
@@ -12,4 +10,15 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:02.15
+Time Elapsed 00:00:03.00
+
+--- real-mode target framework resolution ---
+$ ... -p:UseRealAtas=true -getProperty:TargetFrameworks
+net8.0-windows
+$ ... -p:AtasTargetFrameworks=net8.0-windows%3Bnet10.0-windows
+net8.0-windows;net10.0-windows
+$ stub mode -getProperty:TargetFramework
+netstandard2.0
+
+NOTE: net10.0-windows resolves as a TARGET but has never been COMPILED --
+no .NET 10 SDK and no net10 ATAS reference set were available. NOT VERIFIED.
