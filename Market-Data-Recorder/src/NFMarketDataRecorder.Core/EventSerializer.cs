@@ -15,7 +15,7 @@ namespace NFMarketDataRecorder.Core
         public static void Write(StringBuilder sb, RawEvent e)
         {
             var j = new JsonLine(sb);
-            j.Num("seq", e.Seq)
+            j.Num("recorder_seq", e.Seq)
              .Str("kind", e.Kind)
              .Time("src_ts", e.SourceUtc)
              .Time("recv_ts", e.ReceivedUtc);
@@ -53,7 +53,7 @@ namespace NFMarketDataRecorder.Core
 
         /// <summary>
         /// The canonical form used for comparing two captures: the event line with
-        /// <c>seq</c> and <c>recv_ts</c> removed.
+        /// <c>recorder_seq</c> and <c>recv_ts</c> removed.
         /// </summary>
         /// <remarks>
         /// Both excluded fields are properties of the observer, not of the market.

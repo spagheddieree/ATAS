@@ -39,6 +39,34 @@ namespace NFMarketDataRecorder.Core
         public long WriteFailures { get { return Interlocked.Read(ref _writeFailures); } }
         public bool Stopped { get { return _stopped; } }
 
+        /// <summary>
+        /// Writes one line directly to the sink before the consumer thread exists.
+        /// </summary>
+        /// <remarks>
+        /// Must be called before <see cref="Start"/>. At that point this is the only
+        /// thread touching the sink, so the preamble needs no synchronisation and is
+        /// guaranteed to land ahead of every queued event.
+        /// </remarks>
+        public void WritePreamble(string line)
+        {
+            if (_thread != null)
+                throw new InvalidOperationException("Preamble must be written before the writer thread starts.");
+
+            try
+            {
+                _sink.WriteLine(line);
+                _sink.Flush(false);
+                // Deliberately NOT counted in _written: the header is provenance, not
+                // a market event, and events_written must keep satisfying
+                // written + dropped == events seen.
+            }
+            catch (Exception ex)
+            {
+                Interlocked.Increment(ref _writeFailures);
+                _faults.Record(FaultCode.WriteFailure, DateTime.MinValue, 0, "preamble: " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
+
         public void Start()
         {
             if (_thread != null) throw new InvalidOperationException("Writer already started.");

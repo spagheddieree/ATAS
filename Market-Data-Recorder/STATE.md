@@ -5,7 +5,8 @@
 **Branch:** `claude/atas-replay-event-verifier-xlgebm`
 **Base:** `main` @ `37bb54d`
 **Date:** 2026-09-12
-**Work package:** Real ATAS API Binding Verification + Windows Integration Readiness
+**Work package:** Crystal Ball Interoperability Integration + Dataset v0.1 / Recorder Contract Hardening
+**Prior work package:** Real ATAS API Binding Verification + Windows Integration Readiness
 
 ---
 
@@ -30,7 +31,10 @@ experiment finds.
 | Integrity fault detection (overflow, write failure, and six more) | **Done** |
 | Graceful shutdown and flushing | **Done** |
 | File outputs + manifest, no database | **Done** |
-| Automated tests (6 required areas) | **Done** — 73/73 |
+| Automated tests | **Done** — 129/129 |
+| Provenance hardening: RAW vs NORMALIZED source, run id, acquisition mode, instrument identity, integrity state, field register (schema `rev-2`) | **Done** |
+| Dataset v0.1 acquisition contract + normalized-import seam spec | **Done (design only)** |
+| Crystal Ball Historical Import Adapter | **NOT implemented, by instruction** |
 | 10-minute replay, 1x vs accelerated, compared and documented | **Done against a synthetic feed** — see caveat below |
 | The ATAS indicator adapter | **Written, type-checked against an ASSUMED API** |
 | Real ATAS API binding verification | **BLOCKED — no ATAS assemblies reachable** (B-2) |

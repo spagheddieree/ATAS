@@ -49,6 +49,10 @@ namespace NFMarketDataRecorder.Core
         // never held across a queue operation that could fail, and never across I/O.
         private readonly object _scheduleGate = new object();
 
+        private readonly CaptureHeader _header;
+        private string _integrity = IntegrityState.Clean;
+        private readonly object _integrityGate = new object();
+
         private long _seq;
         private long _trades;
         private long _depthChanges;
@@ -88,11 +92,51 @@ namespace NFMarketDataRecorder.Core
                 _ownsSink = false;
             }
 
+            var rawInstrument = RawInstrumentIdentity.Parse(options.RawInstrument);
+            _header = new CaptureHeader
+            {
+                RunId = string.IsNullOrEmpty(options.RunId)
+                    ? Guid.NewGuid().ToString("N")
+                    : options.RunId,
+                RunLabel = options.RunLabel ?? "",
+                SourceClassValue = SourceClass.RawSource,
+                AcquisitionModeValue = options.AcquisitionMode,
+                RawInstrument = rawInstrument,
+                CanonicalInstrument = CanonicalInstrumentIdentity.Derive(rawInstrument),
+                SourceTimeVerified = options.SourceTimeVerified,
+                StartedWallUtc = _startedWallUtc,
+            };
+            _header.Validate();
+
+            // Every fault deterministically worsens the run's integrity state, so a
+            // run cannot silently stay CLEAN after a defect is observed.
+            _faults.OnFault = code =>
+            {
+                lock (_integrityGate)
+                    _integrity = IntegrityState.Worsen(_integrity, IntegrityState.ForFault(code));
+            };
+
             _writer = new BackgroundWriter(_queue, _sink, _faults, options.FlushEveryLines);
+
+            // Written before any market event and before the consumer thread exists,
+            // so a file is self-describing from its first byte and a truncated capture
+            // still carries its provenance.
+            _writer.WritePreamble(_header.ToJson());
             _writer.Start();
         }
 
         public FaultLog Faults { get { return _faults; } }
+
+        /// <summary>Run provenance written as the first line of the capture.</summary>
+        public CaptureHeader Header { get { return _header; } }
+
+        /// <summary>Canonical identity of this run.</summary>
+        public string RunId { get { return _header.RunId; } }
+
+        /// <summary>
+        /// Current integrity state. Moves only downward, never back toward CLEAN.
+        /// </summary>
+        public string Integrity { get { lock (_integrityGate) return _integrity; } }
         public BoundedEventQueue Queue { get { return _queue; } }
         public long TradesSeen { get { return Interlocked.Read(ref _trades); } }
         public long DepthChangesSeen { get { return Interlocked.Read(ref _depthChanges); } }
@@ -243,7 +287,14 @@ namespace NFMarketDataRecorder.Core
             var manifest = new RunManifest
             {
                 SchemaVersion = SchemaVersion.Current,
-                Instrument = _opt.Instrument ?? "",
+                RecorderVersion = SchemaVersion.RecorderVersion,
+                RunId = _header.RunId,
+                SourceClassValue = _header.SourceClassValue,
+                AcquisitionModeValue = _header.AcquisitionModeValue,
+                RawInstrument = _header.RawInstrument,
+                CanonicalInstrument = _header.CanonicalInstrument,
+                SourceTimeBasis = _header.SourceTimeBasis,
+                SourceTimeVerified = _header.SourceTimeVerified,
                 RunLabel = _opt.RunLabel ?? "",
                 StartedWallUtc = _startedWallUtc,
                 EndedWallUtc = DateTime.UtcNow,
@@ -270,6 +321,16 @@ namespace NFMarketDataRecorder.Core
                                        && manifest.EventsDropped == 0
                                        && manifest.WriteFailures == 0;
 
+            // Integrity is the richer signal: CLEAN / DEGRADED / CORRUPT, derived
+            // deterministically from the faults actually observed. A run that lost
+            // events is CORRUPT; one that merely saw an anomaly is DEGRADED.
+            lock (_integrityGate)
+            {
+                if (!manifest.CaptureComplete)
+                    _integrity = IntegrityState.Worsen(_integrity, IntegrityState.Corrupt);
+                manifest.IntegrityStateValue = _integrity;
+            }
+
             WriteSidecars(manifest);
             return manifest;
         }
@@ -288,6 +349,19 @@ namespace NFMarketDataRecorder.Core
             catch (IOException ex)
             {
                 manifest.SidecarError = "faults.jsonl: " + ex.Message;
+            }
+
+            // The field-availability register travels with every capture, so a
+            // consumer can tell what this partition actually contains instead of
+            // discovering a silent absence mid-analysis.
+            try
+            {
+                File.WriteAllText(Path.Combine(_opt.OutputDirectory, "field-register.jsonl"),
+                                  RecorderFieldRegister.ToJsonLines(), new System.Text.UTF8Encoding(false));
+            }
+            catch (IOException ex)
+            {
+                manifest.SidecarError = (manifest.SidecarError ?? "") + " field-register: " + ex.Message;
             }
 
             string eventsPath = Path.Combine(_opt.OutputDirectory, "events.jsonl");

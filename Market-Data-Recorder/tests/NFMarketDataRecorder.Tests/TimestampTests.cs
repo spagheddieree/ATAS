@@ -47,8 +47,8 @@ namespace NFMarketDataRecorder.Tests
             rec.OnTrade(unspecified, 1m, 1m, Aggressor.Buy);
             rec.Complete();
 
-            Assert.Single(sink.Lines);
-            Assert.Contains("\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"", sink.Lines[0]);
+            Assert.Single(sink.MarketLines);
+            Assert.Contains("\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"", sink.MarketLines[0]);
         }
 
         [Fact]
@@ -65,7 +65,7 @@ namespace NFMarketDataRecorder.Tests
             rec.Complete();
 
             Assert.Equal(1, rec.Faults.CountOf(FaultCode.SourceTimeRegression));
-            Assert.Contains("\"src_ts\":\"2026-03-10T14:30:02.0000000Z\"", sink.Lines[1]);
+            Assert.Contains("\"src_ts\":\"2026-03-10T14:30:02.0000000Z\"", sink.MarketLines[1]);
         }
 
         [Fact]
@@ -78,7 +78,7 @@ namespace NFMarketDataRecorder.Tests
             rec.OnTrade(default, 1m, 1m, Aggressor.Buy);
             rec.Complete();
 
-            Assert.Empty(sink.Lines);
+            Assert.Empty(sink.MarketLines);
             Assert.Equal(1, rec.Faults.CountOf(FaultCode.MissingSourceTime));
         }
 
@@ -92,7 +92,7 @@ namespace NFMarketDataRecorder.Tests
             rec.OnTrade(Sample.Epoch, 1m, 1m, Aggressor.Buy);
             rec.Complete();
 
-            string line = sink.Lines[0];
+            string line = sink.MarketLines[0];
             Assert.Contains("\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"", line);
 
             // recv_ts is present and is genuinely the wall clock, i.e. it is not the

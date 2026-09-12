@@ -119,6 +119,11 @@ namespace NFMarketDataRecorder.Tests
             // If a write failure killed the writer thread, the queue would fill, every
             // later event would be dropped, and the run would end with no manifest.
             using var dir = new TempDir();
+
+            // The capture header is written first, so it absorbs the first simulated
+            // failure: 3 failures = the header plus the first 2 trades. The header
+            // failing is itself worth exercising -- a capture whose provenance line is
+            // missing must still fail loudly rather than produce an unlabelled file.
             var sink = new FailingSink { FailFirst = 3 };
 
             var rec = new EventRecorder(Options(dir), new StaticDom(), sink);
@@ -126,9 +131,10 @@ namespace NFMarketDataRecorder.Tests
             var m = rec.Complete();
 
             Assert.Equal(3, m.WriteFailures);
-            Assert.Equal(7, sink.Written.Count);
-            Assert.Equal(7, m.EventsWritten);
+            Assert.Equal(8, sink.Written.Count);   // 10 trades - 2 that failed
+            Assert.Equal(8, m.EventsWritten);      // header is provenance, never counted
             Assert.False(m.CaptureComplete);
+            Assert.Equal(IntegrityState.Corrupt, m.IntegrityStateValue);
             Assert.Equal(3, rec.Faults.CountOf(FaultCode.WriteFailure));
         }
 
@@ -161,8 +167,8 @@ namespace NFMarketDataRecorder.Tests
             rec.Complete();
 
             Assert.Equal(2, rec.Faults.CountOf(FaultCode.SnapshotSourceUnavailable));
-            Assert.Equal(2, sink.Lines.Count); // both trades survived
-            Assert.DoesNotContain(sink.Lines, l => l.Contains("\"kind\":\"snapshot\""));
+            Assert.Equal(2, sink.MarketLines.Count); // both trades survived
+            Assert.DoesNotContain(sink.MarketLines, l => l.Contains("\"kind\":\"snapshot\""));
         }
 
         [Fact]

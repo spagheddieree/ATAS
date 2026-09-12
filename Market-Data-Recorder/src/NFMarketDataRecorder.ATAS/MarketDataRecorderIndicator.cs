@@ -51,6 +51,10 @@ namespace NFMarketDataRecorder.ATAS
         public string OutputDirectory { get; set; } =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "NFMarketDataRecorder");
 
+        [Display(Name = "Acquisition mode", GroupName = "Capture", Order = 15,
+                 Description = "LIVE or REPLAY. MUST be set by the operator -- it is never inferred from timestamps, symbol, account or date, because during a replay every one of those signals is ambiguous or misleading. Left unset the run records UNKNOWN.")]
+        public string AcquisitionMode { get; set; } = Core.AcquisitionMode.Unknown;
+
         [Display(Name = "Run label", GroupName = "Capture", Order = 20,
                  Description = "Free-text label for this run, e.g. 1x or accel-10x. Recorded in the manifest; does not change behaviour.")]
         public string RunLabel { get; set; } = "unlabelled";
@@ -102,7 +106,21 @@ namespace NFMarketDataRecorder.ATAS
                 var options = new RecorderOptions
                 {
                     OutputDirectory = runDir,
-                    Instrument = InstrumentInfoSafe(),
+
+                    // Captured verbatim. Canonical identity is derived from this and
+                    // stored alongside it, never instead of it, so NQ and MNQ or an
+                    // actual and a continuous contract can never be pooled by accident.
+                    RawInstrument = InstrumentInfoSafe(),
+
+                    AcquisitionMode = Core.AcquisitionMode.IsValid(AcquisitionMode)
+                        ? AcquisitionMode
+                        : Core.AcquisitionMode.Unknown,
+
+                    // The meaning of the platform's event timestamp is not yet verified
+                    // against the real ATAS API, so the capture says so rather than
+                    // implying a guarantee it cannot make.
+                    SourceTimeVerified = false,
+
                     RunLabel = RunLabel ?? "",
                     SnapshotInterval = TimeSpan.FromMilliseconds(SnapshotIntervalMs),
                     SnapshotDepthLimit = SnapshotDepthLimit,

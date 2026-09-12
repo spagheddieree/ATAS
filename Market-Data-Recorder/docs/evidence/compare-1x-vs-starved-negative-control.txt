@@ -1,34 +1,34 @@
 VERDICT: DIVERGENT
-A = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r3-1x/events.jsonl
-B = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r3-starved/events.jsonl
+A = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r4-1x/events.jsonl
+B = /tmp/claude-0/-home-user-Neverflat-OS/201574a4-5107-5922-a0ff-8c4fdf5ffdcf/scratchpad/r4-starved/events.jsonl
 
 events A            : 180599
-events B            : 53939
-differing lines     : 180086
+events B            : 54094
+differing lines     : 179763
 strict match        : no
 ts-bucket match     : no
 shorter is prefix   : no
 
 per-kind counts (A | B):
-  depth         135244 |      40155   <-- DIFFERS
-  snapshot         599 |        534   <-- DIFFERS
-  trade          44756 |      13250   <-- DIFFERS
+  depth         135244 |      40291   <-- DIFFERS
+  snapshot         599 |        528   <-- DIFFERS
+  trade          44756 |      13275   <-- DIFFERS
 
-first divergence at canonical line index 513:
-  A: {"kind":"trade","src_ts":"2026-03-10T14:30:01.7082070Z","price":19999.5,"volume":15,"aggressor":"sell"}
-  B: {"kind":"trade","src_ts":"2026-03-10T14:30:03.1735476Z","price":20000.75,"volume":25,"aggressor":"sell"}
+first divergence at canonical line index 836:
+  A: {"kind":"depth","src_ts":"2026-03-10T14:30:02.7800932Z","side":"bid","price":19999.75,"volume":128}
+  B: {"kind":"depth","src_ts":"2026-03-10T14:30:02.7844457Z","side":"ask","price":20001.5,"volume":0}
 
 source timestamps whose event sets differ (first 10):
-  2026-03-10T14:30:01.7082070Z
-  2026-03-10T14:30:01.7128995Z
-  2026-03-10T14:30:01.7165077Z
-  2026-03-10T14:30:01.7184108Z
-  2026-03-10T14:30:01.7207949Z
-  2026-03-10T14:30:01.7261980Z
-  2026-03-10T14:30:01.7288883Z
-  2026-03-10T14:30:01.7309360Z
-  2026-03-10T14:30:01.7351051Z
-  2026-03-10T14:30:01.7394649Z
+  2026-03-10T14:30:02.7800932Z
+  2026-03-10T14:30:03.6672239Z
+  2026-03-10T14:30:03.6960890Z
+  2026-03-10T14:30:03.6985024Z
+  2026-03-10T14:30:03.7023336Z
+  2026-03-10T14:30:03.7058689Z
+  2026-03-10T14:30:03.7067982Z
+  2026-03-10T14:30:03.7109731Z
+  2026-03-10T14:30:03.7167790Z
+  2026-03-10T14:30:03.7214884Z
 
 interpretation:
   The captures hold different events. Replay speed changes what the feed

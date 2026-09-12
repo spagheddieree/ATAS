@@ -16,7 +16,7 @@ namespace NFMarketDataRecorder.Tests
             var e = RawEvent.Trade(7, Sample.Epoch, Sample.Epoch.AddSeconds(1), 20000.25m, 3m, Aggressor.Buy);
 
             Assert.Equal(
-                "{\"seq\":7,\"kind\":\"trade\"," +
+                "{\"recorder_seq\":7,\"kind\":\"trade\"," +
                 "\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
                 "\"recv_ts\":\"2026-03-10T14:30:01.0000000Z\"," +
                 "\"price\":20000.25,\"volume\":3,\"aggressor\":\"buy\"}",
@@ -29,7 +29,7 @@ namespace NFMarketDataRecorder.Tests
             var e = RawEvent.Depth(8, Sample.Epoch, Sample.Epoch, Side.Ask, 20001m, 0m);
 
             Assert.Equal(
-                "{\"seq\":8,\"kind\":\"depth\"," +
+                "{\"recorder_seq\":8,\"kind\":\"depth\"," +
                 "\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
                 "\"recv_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
                 "\"side\":\"ask\",\"price\":20001,\"volume\":0}",
@@ -43,7 +43,7 @@ namespace NFMarketDataRecorder.Tests
             var e = RawEvent.Snapshot(9, Sample.Epoch, Sample.Epoch, b.Bids, b.Asks, 2);
 
             Assert.Equal(
-                "{\"seq\":9,\"kind\":\"snapshot\"," +
+                "{\"recorder_seq\":9,\"kind\":\"snapshot\"," +
                 "\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
                 "\"recv_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
                 "\"depth_limit\":2," +
@@ -113,7 +113,7 @@ namespace NFMarketDataRecorder.Tests
 
             string canon = EventSerializer.ToCanonical(e);
 
-            Assert.DoesNotContain("\"seq\"", canon);
+            Assert.DoesNotContain("\"recorder_seq\"", canon);
             Assert.DoesNotContain("\"recv_ts\"", canon);
             Assert.Contains("\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"", canon);
             Assert.Contains("\"price\":20000.25", canon);

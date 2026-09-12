@@ -73,12 +73,12 @@ namespace NFMarketDataRecorder.Core
     public static class StreamComparer
     {
         /// <summary>
-        /// Strips <c>seq</c> and <c>recv_ts</c> from a written event line.
+        /// Strips <c>recorder_seq</c> and <c>recv_ts</c> from a written event line.
         /// </summary>
         /// <remarks>
         /// Both fields are written in fixed positions by
-        /// <see cref="EventSerializer.Write"/> — <c>seq</c> first and <c>recv_ts</c>
-        /// fourth — with values that cannot contain a comma or a brace. That lets
+        /// <see cref="EventSerializer.Write"/> — <c>recorder_seq</c> first and
+        /// <c>recv_ts</c> fourth — with values that cannot contain a comma or a brace. That lets
         /// this be a string operation instead of a JSON parse, which keeps the
         /// comparison free of any dependency and fast enough to run over multi
         /// million line captures.
@@ -87,7 +87,7 @@ namespace NFMarketDataRecorder.Core
         {
             if (string.IsNullOrEmpty(line)) return line;
 
-            string s = StripField(line, "\"seq\":");
+            string s = StripField(line, "\"recorder_seq\":");
             s = StripField(s, "\"recv_ts\":");
             return s;
         }
@@ -142,6 +142,12 @@ namespace NFMarketDataRecorder.Core
                 while ((line = r.ReadLine()) != null)
                 {
                     if (line.Length == 0) continue;
+
+                    // The header carries run_id and wall-clock values that must differ
+                    // between two captures of the same market events, so it is provenance
+                    // rather than observation and never takes part in the comparison.
+                    if (ExtractKind(line) == EventKind.Header) continue;
+
                     list.Add(Canonicalize(line));
                 }
             }

@@ -7,6 +7,12 @@ namespace NFMarketDataRecorder.Core
     /// </summary>
     public static class EventKind
     {
+        /// <summary>
+        /// The first line of a capture file: run identity, provenance and instrument
+        /// identity that apply to every event in the file. Not a market event.
+        /// </summary>
+        public const string Header = "header";
+
         /// <summary>One individual trade (print) as reported by the platform.</summary>
         public const string Trade = "trade";
 

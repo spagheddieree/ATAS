@@ -8,15 +8,41 @@ namespace NFMarketDataRecorder.Core
         /// <summary>Directory that will hold events.jsonl, faults.jsonl and manifest.json.</summary>
         public string OutputDirectory;
 
-        /// <summary>Instrument label recorded in the manifest. Free text; not parsed.</summary>
-        public string Instrument = "";
+        /// <summary>
+        /// Canonical run identity. Left empty, the recorder generates one. This is
+        /// what downstream joins and deduplicates on — never <see cref="RunLabel"/>.
+        /// </summary>
+        public string RunId = "";
 
         /// <summary>
-        /// Operator-supplied label for the run, e.g. "1x" or "accel". Recorded in
-        /// the manifest and used by the comparison tool for reporting only; it never
-        /// affects capture behaviour.
+        /// Operator-supplied label for the run, e.g. "1x" or "accel". Reporting only;
+        /// it is not identity and never affects capture behaviour.
         /// </summary>
         public string RunLabel = "";
+
+        /// <summary>
+        /// The instrument exactly as the platform names it, e.g. "dxFeed|NQU6@CME".
+        /// Stored verbatim; canonical identity is derived from it, never instead of it.
+        /// </summary>
+        public string RawInstrument = "";
+
+        /// <summary>
+        /// LIVE or REPLAY, declared by the operator.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately defaults to UNKNOWN rather than LIVE. Inferring the mode from
+        /// timestamps, symbol, account or date is banned — during a historical replay
+        /// the receive clock is present-day while the event clock is historical, so
+        /// every one of those signals is ambiguous or misleading. An undeclared run is
+        /// reported as undeclared.
+        /// </remarks>
+        public string AcquisitionMode = Core.AcquisitionMode.Unknown;
+
+        /// <summary>
+        /// Whether the meaning of the platform's event timestamp has been verified
+        /// against the real API. Governs how far downstream timing analysis may go.
+        /// </summary>
+        public bool SourceTimeVerified = false;
 
         /// <summary>DOM snapshot interval, measured in SOURCE time.</summary>
         public TimeSpan SnapshotInterval = TimeSpan.FromSeconds(1);
@@ -48,6 +74,8 @@ namespace NFMarketDataRecorder.Core
                 throw new ArgumentException("QueueCapacity must be at least 1.");
             if (SnapshotDepthLimit < 0)
                 throw new ArgumentException("SnapshotDepthLimit cannot be negative.");
+            if (!Core.AcquisitionMode.IsValid(AcquisitionMode))
+                throw new ArgumentException("AcquisitionMode must be LIVE, REPLAY or UNKNOWN; got '" + AcquisitionMode + "'.");
             if (DrainTimeout < TimeSpan.Zero)
                 throw new ArgumentException("DrainTimeout cannot be negative.");
         }

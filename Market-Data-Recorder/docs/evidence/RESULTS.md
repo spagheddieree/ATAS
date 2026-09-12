@@ -3,10 +3,10 @@
 Captured **2026-09-12** on Linux 6.18.44 x86_64, .NET SDK **8.0.131**.
 Commit: see `git log` for this directory.
 
-> **Run three times** across two containers and across the rename to NF Market Data
-> Recorder (2026-09-12). Every event count below reproduced exactly each time. The
-> figures that are *expected* to vary are identified as such in §2 and §3 — they
-> measure the host's scheduling, not the data.
+> **Run four times** across two containers, the rename to NF Market Data Recorder, and
+> the `rev-2` provenance hardening (2026-09-12). Every event count below reproduced
+> exactly each time. The figures that are *expected* to vary are identified as such in
+> §2 and §3 — they measure the host's scheduling, not the data.
 
 ---
 
@@ -31,11 +31,11 @@ $ dotnet build NFMarketDataRecorder.sln -c Release
 Build succeeded.  0 Warning(s)  0 Error(s)
 
 $ dotnet test NFMarketDataRecorder.sln -c Release
-Passed!  - Failed: 0, Passed: 73, Skipped: 0, Total: 73
+Passed!  - Failed: 0, Passed: 129, Skipped: 0, Total: 129
 ```
 
 All four projects build with `TreatWarningsAsErrors` and produce zero warnings.
-Files: `build.txt`, `test-run.txt`, `test-inventory.txt` (all 73 test names).
+Files: `build.txt`, `test-run.txt`, `test-inventory.txt` (all 129 test names).
 
 Coverage against the required areas:
 
@@ -47,7 +47,9 @@ Coverage against the required areas:
 | Overflow and write failure | `OverflowAndFaultTests.cs` | 11 |
 | Clean shutdown | `ShutdownTests.cs` | 10 |
 | Deterministic comparisons | `DeterministicComparisonTests.cs` | 16 |
-| **Total** | | **73** |
+| Provenance / source class / mode / run id / integrity | `ProvenanceContractTests.cs` | 34 |
+| Instrument identity and non-merge rules | `InstrumentIdentityTests.cs` | 22 |
+| **Total** | | **129** |
 
 Counts are as enumerated by `dotnet test --list-tests`, so a `[Theory]` contributes one
 entry per case.
@@ -95,7 +97,14 @@ per-kind counts (A | B):
   trade          44756 |      44756
 ```
 
-Files: `compare-1x-vs-accel60.txt`, `compare-1x-vs-accelmax.txt`, `run-manifests.txt`.
+All three runs additionally carried distinct `run_id`s, declared
+`acquisition_mode: REPLAY`, and reported `integrity_state: CLEAN` with partition key
+`SYNTHETIC/CME/NQ/MINI/ACTUAL_CONTRACT/NQU6`. The comparison is still IDENTICAL
+despite the differing run ids, because the capture header is provenance and is
+excluded from canonical comparison by design.
+
+Files: `compare-1x-vs-accel60.txt`, `compare-1x-vs-accelmax.txt`, `run-manifests.txt`,
+`field-register.jsonl`.
 
 **Result: a ~750x change in wall-clock speed produced zero difference in the canonical
 event stream, including all 599 DOM snapshots.** The snapshot count is identical
@@ -118,14 +127,17 @@ unpaced speed, queue reduced from 262 144 to **512** to force overflow.
 | `capture_complete` | **false** | 3 / 3 |
 | `written + dropped` | **180 599** — every event accounted for | 3 / 3 |
 | Fault code | `queue_overflow`, `capacity=512` | 3 / 3 |
-| Fault's first loss | **`seq` 514** | 3 / 3 |
-| Comparer's first divergence | **canonical index 513** (0-based, i.e. line 514) | 3 / 3 |
+| Fault's first loss and the comparer's first divergence | **identify the same event** (`recorder_seq` N, canonical index N-1) | 4 / 4 |
 
-The last two rows are the point. The recorder's fault log and the comparer share no
-code and no inputs — the comparer never sees the fault log, only the two event files —
-and they identify the same event as the first loss, every time. The integrity
-accounting and the comparison corroborate each other rather than sharing a common
-failure mode.
+The last row is the point. The recorder's fault log and the comparer share no code and
+no inputs — the comparer never sees the fault log, only the two event files — yet they
+identify the same event as the first loss, every time. The integrity accounting and the
+comparison corroborate each other rather than sharing a common failure mode.
+
+The *value* of N is not itself an invariant and has moved (514 on three runs, 837 on
+`rev-2`, where writing the capture header shifts the producer/writer race slightly).
+What reproduces is the agreement between two independent mechanisms, which is what the
+control is testing.
 
 ### What does not reproduce, and why that is correct
 
@@ -134,6 +146,7 @@ failure mode.
 | first container | 53 409 | 127 190 |
 | fresh container | 51 656 | 128 943 |
 | post-rename | 53 939 | 126 660 |
+| rev-2 hardening | 54 094 | 126 505 |
 
 Which events survive an overflow depends on how the writer thread is scheduled against
 the producer, so the split moves run to run. The *onset* of loss is deterministic — a

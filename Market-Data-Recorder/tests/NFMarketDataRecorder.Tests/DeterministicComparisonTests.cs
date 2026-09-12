@@ -14,9 +14,9 @@ namespace NFMarketDataRecorder.Tests
         // ---------------------------------------------------------- canonicalize
 
         [Fact]
-        public void Canonicalize_removes_only_seq_and_recv_ts()
+        public void Canonicalize_removes_only_recorder_seq_and_recv_ts()
         {
-            string line = "{\"seq\":5,\"kind\":\"trade\",\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
+            string line = "{\"recorder_seq\":5,\"kind\":\"trade\",\"src_ts\":\"2026-03-10T14:30:00.0000000Z\"," +
                           "\"recv_ts\":\"2026-09-11T00:00:00.0000000Z\",\"price\":1,\"volume\":2,\"aggressor\":\"buy\"}";
 
             Assert.Equal(
@@ -26,7 +26,7 @@ namespace NFMarketDataRecorder.Tests
         }
 
         [Fact]
-        public void Two_lines_differing_only_in_seq_and_recv_ts_are_canonically_equal()
+        public void Two_lines_differing_only_in_recorder_seq_and_recv_ts_are_canonically_equal()
         {
             var a = RawEvent.Trade(1, Sample.Epoch, Sample.Epoch, 20000.25m, 3m, Aggressor.Buy);
             var b = RawEvent.Trade(987654, Sample.Epoch, Sample.Epoch.AddDays(30), 20000.25m, 3m, Aggressor.Buy);
@@ -285,7 +285,7 @@ namespace NFMarketDataRecorder.Tests
             var options = new RecorderOptions
             {
                 OutputDirectory = outDir,
-                Instrument = "NQ (synthetic)",
+                RawInstrument = "SYNTHETIC|NQU6@CME",
                 RunLabel = label,
                 SnapshotInterval = TimeSpan.FromMilliseconds(500),
                 SnapshotDepthLimit = 10,

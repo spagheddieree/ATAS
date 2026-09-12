@@ -77,6 +77,16 @@ namespace NFMarketDataRecorder.Core
         private readonly object _gate = new object();
         private readonly Dictionary<string, FaultRecord> _byCode = new Dictionary<string, FaultRecord>(StringComparer.Ordinal);
 
+        /// <summary>
+        /// Invoked for every fault occurrence, so integrity state can react without
+        /// this class needing to know what integrity state is.
+        /// </summary>
+        /// <remarks>
+        /// Called outside the lock: the handler must not call back into this log, and
+        /// must be cheap, because faults are raised from market-data callback threads.
+        /// </remarks>
+        public Action<string> OnFault;
+
         public void Record(string code, DateTime sourceUtc, long seq, string detail = null)
         {
             lock (_gate)
@@ -97,6 +107,9 @@ namespace NFMarketDataRecorder.Core
                 r.LastSourceUtc = sourceUtc;
                 r.LastSeq = seq;
             }
+
+            var handler = OnFault;
+            if (handler != null) handler(code);
         }
 
         public long CountOf(string code)

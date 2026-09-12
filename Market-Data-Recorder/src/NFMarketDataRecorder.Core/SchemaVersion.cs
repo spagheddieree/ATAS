@@ -7,6 +7,13 @@ namespace NFMarketDataRecorder.Core
     /// </summary>
     public static class SchemaVersion
     {
-        public const string Current = "rev-1";
+        public const string Current = "rev-2";
+
+        /// <summary>
+        /// Build identity of the recorder that produced a capture. Recorded so a
+        /// dataset can tell which code wrote a partition, independently of the wire
+        /// schema, when a defect is found later.
+        /// </summary>
+        public const string RecorderVersion = "0.1.0";
     }
 }

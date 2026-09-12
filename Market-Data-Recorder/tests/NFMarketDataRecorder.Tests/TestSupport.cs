@@ -37,6 +37,29 @@ namespace NFMarketDataRecorder.Tests
 
         public void WriteLine(string line) { lock (_gate) Lines.Add(line); }
 
+        /// <summary>
+        /// Lines excluding the capture header. Almost every test is about market
+        /// events, and the header is run provenance that precedes all of them.
+        /// </summary>
+        public List<string> MarketLines
+        {
+            get
+            {
+                lock (_gate)
+                    return Lines.FindAll(l => !l.Contains("\"kind\":\"header\""));
+            }
+        }
+
+        /// <summary>The capture header line, or null if none was written.</summary>
+        public string HeaderLine
+        {
+            get
+            {
+                lock (_gate)
+                    return Lines.Find(l => l.Contains("\"kind\":\"header\""));
+            }
+        }
+
         public void Flush(bool durable)
         {
             lock (_gate) { Flushes++; if (durable) DurableFlushes++; }
@@ -85,6 +108,25 @@ namespace NFMarketDataRecorder.Tests
     public sealed class ThrowingDom : IDomSource
     {
         public DomBook GetBook(int depthLimit) => throw new InvalidOperationException("depth API unavailable");
+    }
+
+    public static class Lines
+    {
+        /// <summary>
+        /// Parses recorder_seq out of a written line. A helper rather than a
+        /// substring offset, so a field rename cannot silently produce a
+        /// mis-parsed number instead of a clear failure.
+        /// </summary>
+        public static long SeqOf(string line)
+        {
+            const string key = "\"recorder_seq\":";
+            int k = line.IndexOf(key, StringComparison.Ordinal);
+            if (k < 0) throw new FormatException("no recorder_seq in line: " + line);
+            int start = k + key.Length;
+            int end = line.IndexOf(',', start);
+            if (end < 0) throw new FormatException("unterminated recorder_seq in line: " + line);
+            return long.Parse(line.Substring(start, end - start), System.Globalization.CultureInfo.InvariantCulture);
+        }
     }
 
     public static class Sample

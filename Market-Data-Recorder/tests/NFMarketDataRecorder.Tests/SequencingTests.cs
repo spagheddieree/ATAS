@@ -110,9 +110,10 @@ namespace NFMarketDataRecorder.Tests
             for (int i = 0; i < 50; i++) rec.OnTrade(Sample.Epoch.AddMilliseconds(i), i, 1m, Aggressor.Buy);
             rec.Complete();
 
-            Assert.Equal(50, sink.Lines.Count);
+            var lines = sink.MarketLines;
+            Assert.Equal(50, lines.Count);
             for (int i = 0; i < 50; i++)
-                Assert.StartsWith("{\"seq\":" + (i + 1) + ",", sink.Lines[i]);
+                Assert.StartsWith("{\"recorder_seq\":" + (i + 1) + ",", lines[i]);
         }
 
         [Fact]
@@ -127,13 +128,13 @@ namespace NFMarketDataRecorder.Tests
             rec.OnTrade(Sample.Epoch.AddMilliseconds(1500), 2m, 1m, Aggressor.Buy);  // crosses +1s
             rec.Complete();
 
-            Assert.Equal(3, sink.Lines.Count);
-            Assert.Contains("\"kind\":\"trade\"", sink.Lines[0]);
-            Assert.Contains("\"kind\":\"snapshot\"", sink.Lines[1]);
-            Assert.Contains("\"kind\":\"trade\"", sink.Lines[2]);
+            Assert.Equal(3, sink.MarketLines.Count);
+            Assert.Contains("\"kind\":\"trade\"", sink.MarketLines[0]);
+            Assert.Contains("\"kind\":\"snapshot\"", sink.MarketLines[1]);
+            Assert.Contains("\"kind\":\"trade\"", sink.MarketLines[2]);
 
             // The snapshot carries the boundary instant, not the arrival instant.
-            Assert.Contains("\"src_ts\":\"2026-03-10T14:30:01.0000000Z\"", sink.Lines[1]);
+            Assert.Contains("\"src_ts\":\"2026-03-10T14:30:01.0000000Z\"", sink.MarketLines[1]);
         }
 
         [Fact]
@@ -147,9 +148,9 @@ namespace NFMarketDataRecorder.Tests
             rec.Complete();
 
             long prev = 0;
-            foreach (var line in sink.Lines)
+            foreach (var line in sink.MarketLines)
             {
-                long seq = long.Parse(line.Substring(7, line.IndexOf(',') - 7));
+                long seq = Lines.SeqOf(line);
                 Assert.True(seq > prev, "sequence went backwards in the written file");
                 prev = seq;
             }
@@ -174,13 +175,13 @@ namespace NFMarketDataRecorder.Tests
             });
             rec.Complete();
 
-            Assert.Equal(threads * per, sink.Lines.Count);
+            Assert.Equal(threads * per, sink.MarketLines.Count);
             Assert.Equal(0, rec.Queue.Dropped);
 
             var seen = new HashSet<long>();
-            foreach (var line in sink.Lines)
+            foreach (var line in sink.MarketLines)
             {
-                long seq = long.Parse(line.Substring(7, line.IndexOf(',') - 7));
+                long seq = Lines.SeqOf(line);
                 Assert.True(seen.Add(seq), "duplicate sequence number " + seq);
             }
             Assert.Equal(threads * per, seen.Count);

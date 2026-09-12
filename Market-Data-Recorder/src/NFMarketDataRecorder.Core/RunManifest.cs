@@ -11,7 +11,26 @@ namespace NFMarketDataRecorder.Core
     public sealed class RunManifest
     {
         public string SchemaVersion;
-        public string Instrument;
+        public string RecorderVersion;
+
+        /// <summary>Canonical run identity. What downstream joins on.</summary>
+        public string RunId;
+
+        /// <summary>RAW_SOURCE for the recorder. Declared, never assumed.</summary>
+        public string SourceClassValue;
+
+        /// <summary>LIVE / REPLAY / UNKNOWN, as declared by the operator.</summary>
+        public string AcquisitionModeValue;
+
+        public RawInstrumentIdentity RawInstrument = RawInstrumentIdentity.Undeclared;
+        public CanonicalInstrumentIdentity CanonicalInstrument;
+
+        public string SourceTimeBasis;
+        public bool SourceTimeVerified;
+
+        /// <summary>CLEAN / DEGRADED / CORRUPT.</summary>
+        public string IntegrityStateValue = Core.IntegrityState.Clean;
+
         public string RunLabel;
 
         public DateTime StartedWallUtc;
@@ -55,8 +74,27 @@ namespace NFMarketDataRecorder.Core
         {
             var sb = new StringBuilder(1024);
             var j = new JsonLine(sb);
+            var canon = CanonicalInstrument ?? CanonicalInstrumentIdentity.Derive(RawInstrument);
+
             j.Str("schema_version", SchemaVersion)
-             .Str("instrument", Instrument ?? "")
+             .Str("recorder_version", RecorderVersion ?? "")
+             .Str("run_id", RunId ?? "")
+             .Str("source_class", SourceClassValue ?? "")
+             .Str("acquisition_mode", AcquisitionModeValue ?? "")
+             .Bool("acquisition_mode_declared", Core.AcquisitionMode.IsDeclared(AcquisitionModeValue))
+             .Str("raw_instrument", RawInstrument.ToComposite())
+             .Str("raw_provider", RawInstrument.Provider)
+             .Str("raw_symbol", RawInstrument.Symbol)
+             .Str("raw_exchange", RawInstrument.Exchange)
+             .Str("canonical_root", canon.Root)
+             .Str("canonical_size_class", canon.Size)
+             .Str("canonical_contract", canon.Contract)
+             .Str("canonical_series", canon.Series)
+             .Str("canonical_partition_key", canon.PartitionKey)
+             .Str("source_time_basis", SourceTimeBasis ?? "")
+             .Bool("source_time_verified", SourceTimeVerified)
+             .Str("integrity_state", IntegrityStateValue ?? "")
+             .Bool("has_unverified_contract_fields", RecorderFieldRegister.HasUnverifiedFields())
              .Str("run_label", RunLabel ?? "")
              .Time("started_wall_utc", StartedWallUtc)
              .Time("ended_wall_utc", EndedWallUtc)

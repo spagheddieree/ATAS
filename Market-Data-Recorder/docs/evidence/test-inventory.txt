@@ -1,11 +1,11 @@
-Captured 2026-09-12T01:38:09Z
+Captured 2026-09-12T02:38:07Z
 
 $ dotnet test --list-tests
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_changed_value_is_reported_at_its_exact_index
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_dropped_event_is_reported_as_divergent
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_duplicated_event_breaks_the_bucket_test
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.A_truncated_stream_is_flagged_as_a_prefix_not_a_content_difference
-    NFMarketDataRecorder.Tests.DeterministicComparisonTests.Canonicalize_removes_only_seq_and_recv_ts
+    NFMarketDataRecorder.Tests.DeterministicComparisonTests.Canonicalize_removes_only_recorder_seq_and_recv_ts
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.Extracting_source_timestamp_and_kind_works_on_every_event_kind
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.Identical_streams_compare_identical
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.Per_kind_counts_are_reported_for_both_sides
@@ -16,7 +16,29 @@ $ dotnet test --list-tests
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.The_same_script_recorded_twice_yields_byte_identical_captures
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.The_synthetic_script_differs_for_a_different_seed
     NFMarketDataRecorder.Tests.DeterministicComparisonTests.The_synthetic_script_is_identical_for_the_same_seed
-    NFMarketDataRecorder.Tests.DeterministicComparisonTests.Two_lines_differing_only_in_seq_and_recv_ts_are_canonically_equal
+    NFMarketDataRecorder.Tests.DeterministicComparisonTests.Two_lines_differing_only_in_recorder_seq_and_recv_ts_are_canonically_equal
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.A_capture_records_both_identities
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.An_unrecognisable_symbol_stays_unknown_rather_than_being_guessed
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Canonical_derivation_never_replaces_the_raw_identity
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Canonical_identity_is_derived_conservatively(composite: "UNKNOWN|#MNQU6@CME", root: "NQ", size: "MICRO", contract: "MNQU6", series: "CONTINUOUS")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Canonical_identity_is_derived_conservatively(composite: "UNKNOWN|#NQU6@CME", root: "NQ", size: "MINI", contract: "NQU6", series: "CONTINUOUS")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Canonical_identity_is_derived_conservatively(composite: "dxFeed|MNQU6@CME", root: "NQ", size: "MICRO", contract: "MNQU6", series: "ACTUAL_CONTRACT")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Canonical_identity_is_derived_conservatively(composite: "dxFeed|NQU6@CME", root: "NQ", size: "MINI", contract: "NQU6", series: "ACTUAL_CONTRACT")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Continuous_and_actual_contracts_never_share_a_partition_key
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Different_contract_months_never_share_a_partition_key
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Different_providers_never_share_a_partition_key
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.NQ_and_MNQ_never_share_a_partition_key
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Provider_casing_variants_are_preserved_not_normalized_away
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_is_parsed_without_altering_any_component(composite: "NQU6", provider: "", symbol: "NQU6", exchange: "")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_is_parsed_without_altering_any_component(composite: "UNKNOWN|#MNQU6@CME", provider: "UNKNOWN", symbol: "#MNQU6", exchange: "CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_is_parsed_without_altering_any_component(composite: "UNKNOWN|#NQU6@CME", provider: "UNKNOWN", symbol: "#NQU6", exchange: "CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_is_parsed_without_altering_any_component(composite: "Unknown|NQU6@CME", provider: "Unknown", symbol: "NQU6", exchange: "CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_is_parsed_without_altering_any_component(composite: "dxFeed|NQU6@CME", provider: "dxFeed", symbol: "NQU6", exchange: "CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_round_trips_byte_for_byte(composite: "NQU6")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_round_trips_byte_for_byte(composite: "UNKNOWN|#MNQU6@CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_round_trips_byte_for_byte(composite: "Unknown|NQU6@CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.Raw_identity_round_trips_byte_for_byte(composite: "dxFeed|NQU6@CME")
+    NFMarketDataRecorder.Tests.InstrumentIdentityTests.The_same_instrument_from_the_same_feed_does_share_a_partition_key
     NFMarketDataRecorder.Tests.OverflowAndFaultTests.A_failing_depth_api_faults_the_snapshot_without_losing_market_events
     NFMarketDataRecorder.Tests.OverflowAndFaultTests.A_flush_failure_is_recorded_rather_than_thrown
     NFMarketDataRecorder.Tests.OverflowAndFaultTests.A_write_failure_does_not_kill_the_writer_and_later_events_still_land
@@ -28,6 +50,40 @@ $ dotnet test --list-tests
     NFMarketDataRecorder.Tests.OverflowAndFaultTests.Queue_accepts_exactly_its_capacity_then_drops
     NFMarketDataRecorder.Tests.OverflowAndFaultTests.Queue_never_exceeds_capacity_under_concurrent_producers
     NFMarketDataRecorder.Tests.OverflowAndFaultTests.Queue_records_its_high_water_mark
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_clean_run_reports_clean
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_declared_replay_mode_is_carried_into_header_and_manifest
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_header_requires_run_identity
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_lossless_anomaly_degrades_but_does_not_corrupt
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_normalized_source_may_not_emit_event_level_observations
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_raw_source_may_emit_every_event_kind
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.A_run_cannot_stay_clean_after_a_defect_even_if_it_ends_quietly
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Acquisition_mode_defaults_to_unknown_never_to_live
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.All_three_contracts_are_registered
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.An_explicit_run_id_is_honoured
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.An_invalid_acquisition_mode_is_rejected_rather_than_coerced
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.An_undeclared_acquisition_mode_is_reported_as_undeclared
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.An_unrecognised_source_class_may_emit_nothing
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Each_fault_maps_to_a_deterministic_integrity_state(fault: "drain_timeout", expected: "CORRUPT")
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Each_fault_maps_to_a_deterministic_integrity_state(fault: "missing_source_time", expected: "DEGRADED")
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Each_fault_maps_to_a_deterministic_integrity_state(fault: "queue_overflow", expected: "CORRUPT")
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Each_fault_maps_to_a_deterministic_integrity_state(fault: "snapshot_source_unavailable", expected: "DEGRADED")
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Each_fault_maps_to_a_deterministic_integrity_state(fault: "source_time_regression", expected: "DEGRADED")
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Each_fault_maps_to_a_deterministic_integrity_state(fault: "write_failure", expected: "CORRUPT")
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Every_classification_carries_evidence
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Every_run_gets_a_run_id_even_when_none_was_supplied
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Integrity_state_only_ever_worsens
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Lost_events_corrupt_the_run
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Recorder_owned_fields_are_available_directly
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Replay_mode_is_not_inferrable_from_the_data
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Run_label_is_not_run_identity
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Source_time_is_not_claimed_verified_while_the_api_is_unverified
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.The_header_is_excluded_from_canonical_comparison
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.The_header_is_the_first_line_of_the_capture
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.The_manifest_flags_that_contract_fields_remain_unverified
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.The_recorder_always_declares_itself_a_raw_source
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.The_register_is_written_beside_every_capture
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Two_runs_get_different_run_ids
+    NFMarketDataRecorder.Tests.ProvenanceContractTests.Unverified_api_fields_are_declared_unknown_not_available
     NFMarketDataRecorder.Tests.SequencingTests.A_snapshot_is_written_before_the_event_that_crossed_its_boundary
     NFMarketDataRecorder.Tests.SequencingTests.Concurrent_producers_lose_nothing_and_produce_unique_sequence_numbers
     NFMarketDataRecorder.Tests.SequencingTests.Counters_separate_trades_depth_changes_and_snapshots

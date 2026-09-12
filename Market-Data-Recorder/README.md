@@ -33,7 +33,7 @@ been started.
 
 | Component | State | Evidence |
 |---|---|---|
-| `Core` — recorder, scheduler, queue, writer, comparer | **Done, tested** | 73/73 tests pass · `docs/evidence/` |
+| `Core` — recorder, scheduler, queue, writer, comparer, provenance | **Done, tested** | 129/129 tests pass · `docs/evidence/` |
 | `Harness` — synthetic feed + compare CLI | **Done, tested** | `docs/evidence/` |
 | `ATAS` — the indicator adapter | **Written, type-checked against an ASSUMED API** | `docs/ATAS-API-VERIFICATION.md` |
 | Real ATAS Replay experiment | **NOT RUN** — no GUI, no Windows, no ATAS available | `docs/GUI-REPLAY-RUNBOOK.md` |
@@ -82,10 +82,18 @@ dotnet build src\NFMarketDataRecorder.ATAS\NFMarketDataRecorder.ATAS.csproj -c R
 One directory per run:
 
 ```
-events.jsonl    raw events only, one JSON object per line
-faults.jsonl    integrity faults, aggregated by code
-manifest.json   counts, integrity flags, SHA-256 of events.jsonl
+events.jsonl         line 1: capture header (run provenance)
+                     line 2+: raw events, one JSON object per line
+faults.jsonl         integrity faults, aggregated by code
+field-register.jsonl what this partition's fields actually contain
+manifest.json        counts, provenance, integrity state, SHA-256 of events.jsonl
 ```
+
+Every capture declares its provenance: `run_id`, `source_class` (always `RAW_SOURCE`),
+`acquisition_mode` (`LIVE`/`REPLAY`/`UNKNOWN`, operator-declared and never inferred),
+raw instrument identity verbatim plus a derived canonical identity, and an integrity
+state of `CLEAN`/`DEGRADED`/`CORRUPT`. Full specification:
+[`docs/DATASET-V0.1-CONTRACT.md`](docs/DATASET-V0.1-CONTRACT.md).
 
 `manifest.json` is written **last** and only on the clean shutdown path, so its
 presence means the run ended properly. A run directory without one is not comparable.
@@ -97,14 +105,21 @@ be treated as faithful.
 ### Event shapes
 
 ```json
-{"seq":1,"kind":"trade","src_ts":"...","recv_ts":"...","price":20000.25,"volume":3,"aggressor":"buy"}
-{"seq":2,"kind":"depth","src_ts":"...","recv_ts":"...","side":"bid","price":20000,"volume":0}
-{"seq":3,"kind":"snapshot","src_ts":"...","recv_ts":"...","depth_limit":20,"bids":[[p,v],...],"asks":[[p,v],...]}
+{"kind":"header","schema_version":"rev-2","run_id":"...","source_class":"RAW_SOURCE","acquisition_mode":"REPLAY", ...}
+{"recorder_seq":1,"kind":"trade","src_ts":"...","recv_ts":"...","price":20000.25,"volume":3,"aggressor":"buy"}
+{"recorder_seq":2,"kind":"depth","src_ts":"...","recv_ts":"...","side":"bid","price":20000,"volume":0}
+{"recorder_seq":3,"kind":"snapshot","src_ts":"...","recv_ts":"...","depth_limit":20,"bids":[[p,v],...],"asks":[[p,v],...]}
 ```
+
+The logical row is `header ⊗ event` — run provenance is constant per file and carried
+once rather than repeated on every line.
 
 - `src_ts` — the **platform's** timestamp. The only clock any decision is made on.
 - `recv_ts` — wall clock at capture. Diagnostic only; excluded from comparison.
-- `seq` — capture order. A total order of *observation*, not of the exchange.
+- `recorder_seq` — capture order. A total order of *observation*, **not** an exchange
+  sequence; no source sequence is claimed to exist.
+- `recv_ts − src_ts` is **not latency** — under `REPLAY` it is meaningless by
+  construction.
 - `volume: 0` on a depth record means the level was removed.
 - `aggressor: "unknown"` is a real value — direction is never inferred from price.
 

@@ -24,7 +24,7 @@ namespace NFMarketDataRecorder.Tests
 
             // No polling and no sleep: Complete() must not return until the queue is
             // empty, so the count is correct the instant it returns.
-            Assert.Equal(n, sink.Lines.Count);
+            Assert.Equal(n, sink.MarketLines.Count);
             Assert.Equal(n, m.EventsWritten);
             Assert.True(m.Drained);
             Assert.True(m.CaptureComplete);
@@ -87,7 +87,7 @@ namespace NFMarketDataRecorder.Tests
             rec.OnTrade(Sample.Epoch.AddSeconds(1), 2m, 1m, Aggressor.Buy);
             rec.OnDepthChange(Sample.Epoch.AddSeconds(2), Side.Bid, 3m, 1m);
 
-            Assert.Single(sink.Lines);
+            Assert.Single(sink.MarketLines);
             Assert.Equal(2, rec.Faults.CountOf(FaultCode.EnqueueAfterComplete));
         }
 
@@ -165,7 +165,7 @@ namespace NFMarketDataRecorder.Tests
             long accounted = m.EventsWritten + m.EventsDropped + refused;
 
             Assert.Equal(threads * per, accounted);
-            Assert.Equal(m.EventsWritten, sink.Lines.Count);
+            Assert.Equal(m.EventsWritten, sink.MarketLines.Count);
         }
 
         [Fact]
@@ -183,7 +183,7 @@ namespace NFMarketDataRecorder.Tests
         private static RecorderOptions Options(TempDir dir) => new RecorderOptions
         {
             OutputDirectory = dir.Path,
-            Instrument = "NQ",
+            RawInstrument = "TEST|NQU6@CME",
             RunLabel = "test",
             SnapshotInterval = TimeSpan.FromHours(1),
             DrainTimeout = TimeSpan.FromSeconds(30),

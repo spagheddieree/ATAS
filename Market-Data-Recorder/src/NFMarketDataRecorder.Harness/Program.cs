@@ -38,6 +38,7 @@ namespace NFMarketDataRecorder.Harness
 
   synth    --out DIR [--label L] [--speed X] [--minutes N] [--rate EVENTS_PER_SEC]
            [--seed N] [--interval-ms MS] [--depth N] [--queue N] [--threads N]
+           [--instrument RAW] [--mode LIVE|REPLAY] [--run-id ID]
 
            Drives the recorder with a deterministic synthetic feed. --speed is a
            WALL-CLOCK multiplier: the source timestamps in the script are fixed,
@@ -77,7 +78,14 @@ namespace NFMarketDataRecorder.Harness
             var options = new RecorderOptions
             {
                 OutputDirectory = outDir,
-                Instrument = "NQ (synthetic)",
+
+                // The synthetic feed stands in for an ATAS Replay session, so the run
+                // declares REPLAY explicitly -- exactly as an operator must, and never
+                // inferred from the data.
+                RawInstrument = a.Get("instrument", "SYNTHETIC|NQU6@CME"),
+                AcquisitionMode = a.Get("mode", Core.AcquisitionMode.Replay),
+                SourceTimeVerified = false,
+                RunId = a.Get("run-id", null),
                 RunLabel = label,
                 SnapshotInterval = TimeSpan.FromMilliseconds(intervalMs),
                 SnapshotDepthLimit = depth,
@@ -115,6 +123,10 @@ namespace NFMarketDataRecorder.Harness
             Console.WriteLine("drained           : {0}", manifest.Drained);
             Console.WriteLine("capture_complete  : {0}", manifest.CaptureComplete);
             Console.WriteLine("events sha256     : {0}", manifest.EventsSha256);
+            Console.WriteLine("run_id            : {0}", manifest.RunId);
+            Console.WriteLine("acquisition_mode  : {0}", manifest.AcquisitionModeValue);
+            Console.WriteLine("integrity_state   : {0}", manifest.IntegrityStateValue);
+            Console.WriteLine("partition_key     : {0}", (manifest.CanonicalInstrument ?? CanonicalInstrumentIdentity.Derive(manifest.RawInstrument)).PartitionKey);
             foreach (var f in manifest.Faults)
                 Console.WriteLine("FAULT {0} x{1}", f.Code, f.Count);
 
